@@ -53,6 +53,7 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 .clock-lab{font-size:13px;opacity:.72;margin-top:6px}
 .title h1{margin:0;font-size:22px;font-weight:600;letter-spacing:.01em}
 .title p{margin:2px 0 0;font-size:13px;opacity:.72}
+.role-badge{display:inline-block;margin-top:6px;padding:2px 7px;border:1px solid rgba(255,255,255,.35);border-radius:3px;font-size:11px;text-transform:uppercase;letter-spacing:.06em}
 .stats{display:flex;gap:22px;text-align:right}
 .stat b{display:block;font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-size:30px;font-weight:600;line-height:1}
 .stat span{font-size:12px;opacity:.72}
@@ -82,6 +83,10 @@ main{max-width:1180px;margin:0 auto;padding:18px 20px 60px}
 .seg button{border:0;background:none;padding:8px 12px;color:var(--muted);font-size:14px}
 .seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
 .btn-ghost{border:1px solid var(--line);background:var(--surface);color:var(--ink);padding:8px 12px;border-radius:4px;font-size:14px}
+.role-link{text-decoration:none}
+.user-mode .row .hp{cursor:default}
+.user-mode .row .rst,.user-mode .row .b-more{display:none}
+.user-mode .row .acts{justify-content:flex-end}
 
 /* Phases */
 .phase{margin-top:22px}
@@ -173,6 +178,7 @@ dialog input{width:100%;padding:8px 10px;border:1px solid var(--line);border-rad
     <div class="title">
       <h1 class="cond">Migración Storage Pure Cirion · Venezuela</h1>
       <p id="winTxt">Inicio y fin de la ventana se toman de la primera y la última actividad registradas.</p>
+      <span class="role-badge" id="roleBadge"></span>
     </div>
     <div class="stats">
       <div class="stat"><b id="sDone">0</b><span>finalizadas</span></div>
@@ -199,6 +205,7 @@ dialog input{width:100%;padding:8px 10px;border:1px solid var(--line);border-rad
     </div>
     <button class="btn-ghost" id="exportBtn" hidden>Descargar Excel (CSV)</button>
     <button class="btn-ghost btn-danger" id="resetAllBtn" title="Borra el inicio y el fin de todas las actividades">Reiniciar todos los tiempos</button>
+    <a class="btn-ghost role-link" id="roleLink" href="?role=user">Dashboard de usuario</a>
   </div>
 
   <div id="list"></div>
@@ -342,12 +349,21 @@ function splitNodos(s){ return (s||"").split(/[,;\s]+/).map(x=>x.trim()).filter(
 
 let times = {};           // id -> {inicio:ms, fin:ms}
 let mode = "pending";     // pending | shared | local
+const USER_MODE = new URLSearchParams(location.search).get("role") === "user";
 let db = null, coll = null, acoll = null, hcoll = null, mcoll = null;
 let fStatus = "all", fArea = null, fQuery = "";
 const closed = new Set();
 const busy = new Set();
 
 const $ = s => document.querySelector(s);
+document.body.classList.toggle("user-mode", USER_MODE);
+$("#roleBadge").textContent = USER_MODE ? "Dashboard de usuario · solo iniciar/finalizar" : "Dashboard administrador";
+$("#roleLink").textContent = USER_MODE ? "Dashboard administrador" : "Dashboard de usuario";
+$("#roleLink").href = USER_MODE ? "?role=admin" : "?role=user";
+if(USER_MODE){
+  $("#exportBtn").hidden = true;
+  $("#resetAllBtn").hidden = true;
+}
 const pad = n => String(n).padStart(2,"0");
 function fmtDur(ms){ if(ms==null||ms<0) ms=0; const s=Math.floor(ms/1000); return pad(Math.floor(s/3600))+":"+pad(Math.floor(s%3600/60))+":"+pad(s%60); }
 function fmtTime(ms){ if(!ms) return "—"; const d=new Date(ms); return pad(d.getHours())+":"+pad(d.getMinutes())+":"+pad(d.getSeconds()); }
@@ -527,6 +543,7 @@ async function writeTimes(id, val){
 }
 
 async function writeAct(id, def){
+  if(USER_MODE) return false;
   busy.add(id);
   const prevA=custom[id], prevT=times[id], next={...custom};
   if(def) next[id]=def; else { delete next[id]; delete times[id]; }
@@ -548,6 +565,7 @@ async function writeAct(id, def){
 }
 
 async function writeMod(id, m){   // m: datos nuevos o null = volver al original
+  if(USER_MODE) return false;
   const had=id in mods, prev=mods[id], next={...mods};
   if(m && !sameAsBase(id,m)) next[id]=m; else delete next[id];
   busy.add(id); setMods(next); render();
@@ -565,6 +583,7 @@ async function writeMod(id, m){   // m: datos nuevos o null = volver al original
 }
 
 async function writeHp(id, h){   // h: nueva hora ("" = sin hora) o null = restaurar la original
+  if(USER_MODE) return false;
   if(custom[id]) return writeAct(id, {...custom[id], hp:h||""});
   const base=BASE_ACTS.find(a=>a.id===id), had=id in hpOver, prev=hpOver[id];
   if(h==null || h===(base.hp||"")) delete hpOver[id]; else hpOver[id]=h;
@@ -597,15 +616,18 @@ function ask(title, msg, okText, danger=true){
 }
 
 async function resetIni(id){
+  if(USER_MODE) return;
   const t=times[id]; if(!t||!t.inicio) return;
   if(t.fin && !await ask("Reiniciar inicio", "También se borrará el fin y la actividad volverá a pendiente.", "Reiniciar")) return;
   writeTimes(id,null); toast("Inicio reiniciado");
 }
 function resetFin(id){
+  if(USER_MODE) return;
   const t=times[id]; if(!t||!t.fin) return;
   writeTimes(id,{inicio:t.inicio,fin:null}); toast("Fin reiniciado · la actividad vuelve a estar en curso");
 }
 async function resetAll(){
+  if(USER_MODE) return;
   const ids=Object.keys(times);
   if(!ids.length){ toast("No hay tiempos registrados."); return; }
   if(!await ask("Reiniciar todos los tiempos",
@@ -650,18 +672,19 @@ function rowHTML(a, now, ord, showPh){
   if(a.comp) meta.push(`<span>${esc(a.comp)}</span>`);
   if(a.nodos.length) meta.push(`<span class="nodes">${esc(a.nodos.join(" · "))}</span>`);
   const dis = mode==="pending"||busy.has(a.id);
+  const manageDis = dis || USER_MODE;
   return `<div class="${cls}" style="--c:${ar.c}" data-id="${a.id}">
-    <button class="hp${hpOf(a)?"":" empty-hp"}${!custom[a.id] && a.id in hpOver?" adj":""}" data-do="hp" ${dis?"disabled":""} title="${!custom[a.id] && a.id in hpOver?"Hora ajustada (original: "+esc(a.hp||"sin hora")+") · clic para cambiar":"Ajustar hora plan"}" aria-label="Hora plan: ${esc(a.act)}">${esc(hpOf(a)||"+ hora")}</button>
+    <button class="hp${hpOf(a)?"":" empty-hp"}${!custom[a.id] && a.id in hpOver?" adj":""}" data-do="hp" ${manageDis?"disabled":""} title="${!custom[a.id] && a.id in hpOver?"Hora ajustada (original: "+esc(a.hp||"sin hora")+") · clic para cambiar":"Ajustar hora plan"}" aria-label="Hora plan: ${esc(a.act)}">${esc(hpOf(a)||"+ hora")}</button>
     <div class="act"><div class="name">${esc(a.act)}</div><div class="meta">${meta.join("")}</div></div>
     <div class="times">
-      <div><div class="k">Inicio</div><div class="v">${fmtTime(t.inicio)}${t.inicio?`<button class="rst" data-do="rstIni" ${dis?"disabled":""} title="Reiniciar inicio (vuelve a pendiente)" aria-label="Reiniciar inicio: ${esc(a.act)}">↺</button>`:""}</div></div>
-      <div><div class="k">Fin</div><div class="v">${fmtTime(t.fin)}${n?`<span class="ord" title="Orden de finalización">#${n}</span>`:""}${t.fin?`<button class="rst" data-do="rstFin" ${dis?"disabled":""} title="Reiniciar fin (vuelve a en curso)" aria-label="Reiniciar fin: ${esc(a.act)}">↺</button>`:""}</div></div>
+      <div><div class="k">Inicio</div><div class="v">${fmtTime(t.inicio)}${t.inicio?`<button class="rst" data-do="rstIni" ${manageDis?"disabled":""} title="Reiniciar inicio (vuelve a pendiente)" aria-label="Reiniciar inicio: ${esc(a.act)}">↺</button>`:""}</div></div>
+      <div><div class="k">Fin</div><div class="v">${fmtTime(t.fin)}${n?`<span class="ord" title="Orden de finalización">#${n}</span>`:""}${t.fin?`<button class="rst" data-do="rstFin" ${manageDis?"disabled":""} title="Reiniciar fin (vuelve a en curso)" aria-label="Reiniciar fin: ${esc(a.act)}">↺</button>`:""}</div></div>
       <div class="dur" ${st==="run"?'data-live="'+a.id+'"':""}>${d==null?"—":fmtDur(d)}${over?'<span class="flag">Supera 1 h</span>':""}</div>
     </div>
     <div class="acts">
       <button class="b b-start" data-do="start" ${st!=="pend"||dis?"disabled":""} aria-label="Iniciar: ${esc(a.act)}">Iniciar</button>
       <button class="b b-end" data-do="end" ${st!=="run"||dis?"disabled":""} aria-label="Finalizar: ${esc(a.act)}">Finalizar</button>
-      <button class="b-more" data-do="edit" ${dis?"disabled":""} title="Corregir tiempos o editar la actividad" aria-label="Corregir tiempos: ${esc(a.act)}">⋯</button>
+      <button class="b-more" data-do="edit" ${manageDis?"disabled":""} title="Corregir tiempos o editar la actividad" aria-label="Corregir tiempos: ${esc(a.act)}">⋯</button>
     </div>
   </div>`;
 }
@@ -704,7 +727,7 @@ function render(){
       lastSub=a.sub;
       html+=rowHTML(a,now,ord);
     }
-    if(mode!=="pending") html+=`<button class="add" data-add="${esc(ph)}">+ Agregar actividad en ${esc(ph.charAt(0)+ph.slice(1).toLowerCase())}</button>`;
+    if(mode!=="pending" && !USER_MODE) html+=`<button class="add" data-add="${esc(ph)}">+ Agregar actividad en ${esc(ph.charAt(0)+ph.slice(1).toLowerCase())}</button>`;
     html+=`</div></section>`;
   }
   $("#list").innerHTML = html || `<div class="empty">Ninguna actividad coincide con el filtro.</div>`;
@@ -774,6 +797,7 @@ let qT; $("#q").addEventListener("input",e=>{ clearTimeout(qT); qT=setTimeout(()
 /* edit dialog */
 let editId=null; const dlg=$("#dlg");
 function openEdit(id){
+  if(USER_MODE) return;
   editId=id; const a=ACTS.find(x=>x.id===id), t=times[id]||{};
   $("#dlgS").textContent=a.act+(a.nodos.length?" — "+a.nodos.join(", "):"");
   $("#fIni").value=toLocalInput(t.inicio); $("#fFin").value=toLocalInput(t.fin);
@@ -791,6 +815,7 @@ $("#dlgDel").onclick=async()=>{
 /* hora plan */
 let hpId=null; const hpDlg=$("#hpDlg");
 function openHp(id){
+  if(USER_MODE) return;
   hpId=id; const a=ACTS.find(x=>x.id===id), cur=hpOf(a), isBase=!custom[id];
   $("#hpS").textContent=a.act+(a.nodos.length?" — "+a.nodos.join(", "):"");
   $("#hpIn").value=hpToInput(cur);
@@ -821,6 +846,7 @@ function fillSubs(keep){
   $("#aSubW").hidden=!subs.length;
 }
 function openActForm(ph, id){
+  if(USER_MODE) return;
   formId=id||null;
   const a=id?ACTS.find(x=>x.id===id):null, isBase=!!a && !custom[id];
   ph=a?a.ph:ph;
