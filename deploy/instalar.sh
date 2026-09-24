@@ -16,9 +16,10 @@ restorecon -R "$DEST" 2>/dev/null || true
 
 cp "$SRC/deploy/cronometro.service" /etc/systemd/system/
 systemctl daemon-reload
-systemctl enable --now cronometro
+systemctl enable cronometro
+systemctl restart cronometro   # también sirve para actualizar: aplica un server.py nuevo
 
-if systemctl is-active --quiet firewalld; then
+if systemctl is-active --quiet firewalld && ! firewall-cmd --query-port=$PORT/tcp >/dev/null; then
   firewall-cmd --permanent --add-port=$PORT/tcp && firewall-cmd --reload
 fi
 
