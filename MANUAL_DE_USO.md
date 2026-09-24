@@ -57,10 +57,21 @@ No puede:
 4. La actividad cambiará a estado **En curso** y mostrará el tiempo
    transcurrido.
 5. Presiona **Finalizar** cuando termine.
-6. Verifica que aparezca la hora de inicio, la hora de fin y la duración.
+6. En la ventana **Comentario de la tarea**, escribe una observación si es
+   necesario y selecciona **Guardar**. El comentario puede tener hasta 1000
+   caracteres.
+7. Verifica que aparezca la hora de inicio, la hora de fin y la duración.
 
-Una actividad finalizada no puede corregirse desde este perfil. Si se registró
+Una actividad finalizada no puede corregirse desde este perfil. El comentario
+sí puede agregarse o actualizarse con el botón **Comentario**. Si se registró
 un tiempo incorrecto, solicita al administrador que lo ajuste.
+
+### Consultar o actualizar un comentario
+
+Después de finalizar una actividad, aparece el botón **Comentario**. Si ya
+existe un comentario, el botón muestra **Ver comentario**. Selecciónalo para
+consultar, modificar o borrar la observación y luego presiona **Guardar**.
+Esta función está disponible para el perfil usuario y para el administrador.
 
 ### Vista general del dashboard
 
@@ -81,6 +92,15 @@ El procedimiento normal es el mismo que para el usuario operativo:
 1. Selecciona **Iniciar** al comenzar.
 2. Selecciona **Finalizar** al terminar.
 3. Revisa la duración registrada.
+4. Al finalizar, agrega una observación en la ventana **Comentario de la
+   tarea**. Tanto el administrador como el usuario operativo pueden consultar
+   y actualizar ese comentario.
+
+### Gestionar comentarios
+
+En una actividad finalizada, selecciona **Comentario** o **Ver comentario**.
+Escribe la observación operativa, corrige su contenido si es necesario o
+déjala vacía para eliminarla. Presiona **Guardar** para conservar el cambio.
 
 ### Corregir tiempos
 
@@ -142,6 +162,7 @@ Selecciona **Descargar Excel (CSV)**. El archivo incluye:
 - Inicio y fin.
 - Duración.
 - Indicador de actividades que superan una hora.
+- Comentario de la actividad.
 
 El archivo CSV puede abrirse con Excel u otra hoja de cálculo.
 
@@ -191,6 +212,12 @@ para evaluar continuidad o rollback.
 Cuando la aplicación se ejecuta con `server.py`, los registros se guardan en
 `registros.txt`. La página consulta periódicamente el archivo y puede reflejar
 cambios realizados por otro usuario.
+
+Cada comentario se guarda junto con el inicio, el fin y los datos informativos
+de su actividad. Los comentarios se conservan al recargar la página, reiniciar
+el servicio o actualizar la aplicación. Si un comentario incluye el carácter
+`|` o saltos de línea, la aplicación los normaliza para mantener el formato del
+archivo.
 
 El archivo se encuentra normalmente en:
 
@@ -249,3 +276,5 @@ actividad. El perfil operativo no puede modificar registros finalizados.
 - Revisa las actividades en curso antes de cerrar la sesión.
 - Exporta un CSV al finalizar la migración.
 - Solicita al administrador una copia de respaldo de `registros.txt`.
+- Registra en los comentarios cualquier incidencia, validación o acción
+  relevante al finalizar una actividad.

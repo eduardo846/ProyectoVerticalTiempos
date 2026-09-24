@@ -87,6 +87,8 @@ main{max-width:1180px;margin:0 auto;padding:18px 20px 60px}
 .user-mode .row .hp{cursor:default}
 .user-mode .row .rst,.user-mode .row .b-more{display:none}
 .user-mode .row .acts{justify-content:flex-end}
+.comment-btn{border:1px solid var(--line);background:var(--surface);color:var(--muted);padding:8px 10px;border-radius:2px;font-size:14px;font-weight:600;min-width:78px}
+.comment-btn.has-comment{color:var(--start);border-color:var(--start)}
 
 /* Phases */
 .phase{margin-top:22px}
@@ -100,7 +102,7 @@ main{max-width:1180px;margin:0 auto;padding:18px 20px 60px}
 .sub{font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-weight:600;font-size:16px;color:var(--muted);padding:14px 0 4px 2px}
 
 /* Rows */
-.row{display:grid;grid-template-columns:62px minmax(0,1fr) 250px 196px;gap:14px;align-items:center;background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--c);padding:10px 12px;margin-top:6px;border-radius:3px}
+.row{display:grid;grid-template-columns:62px minmax(0,1fr) 238px 250px;gap:14px;align-items:center;background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--c);padding:10px 12px;margin-top:6px;border-radius:3px}
 .row.running{background:var(--run-bg);border-color:var(--run);border-left-color:var(--c)}
 .row.done{background:var(--done-bg)}
 .row.over{background:var(--over-bg)}
@@ -126,8 +128,10 @@ main{max-width:1180px;margin:0 auto;padding:18px 20px 60px}
 .row.running .dur{color:var(--run)}
 .row.over .dur{color:var(--over)}
 .flag{font-size:11.5px;font-weight:600;color:var(--over);margin-left:6px;font-family:Barlow,sans-serif}
-.acts{display:flex;gap:6px;justify-content:flex-end}
+.acts{display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap}
 .b{border:0;border-radius:4px;padding:9px 12px;font-weight:600;font-size:14px;min-width:78px}
+.acts .b,.acts .comment-btn{flex:1 1 78px}
+.acts .b-more{flex:0 0 34px}
 .b-start{background:var(--start);color:var(--start-ink)}
 .b-end{background:var(--done);color:#fff}
 :root[data-theme="dark"] .b-end{color:#0E1620}
@@ -158,6 +162,8 @@ dialog .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .dlg-links{display:flex;gap:18px;flex-wrap:wrap;margin-top:14px}
 dialog select:disabled{opacity:.6}
 dialog input{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:4px;background:var(--bg);color:var(--ink);font:inherit}
+dialog textarea{display:block;width:100%;min-height:112px;resize:vertical;padding:10px;border:1px solid var(--line);border-radius:4px;background:var(--bg);color:var(--ink);font:inherit;line-height:1.45}
+dialog textarea:focus{outline:2px solid var(--start);outline-offset:1px}
 .dlg-f{display:flex;gap:8px;justify-content:space-between;margin-top:18px;flex-wrap:wrap}
 .dlg-f .r{display:flex;gap:8px}
 .b-danger{background:none;border:1px solid var(--over);color:var(--over)}
@@ -245,7 +251,7 @@ main{padding-top:16px}
 .add{border-radius:2px}
 .auth-card{border-radius:0;box-shadow:0 22px 60px rgba(0,0,0,.28)}
 @media (max-width:980px){
-  .row{grid-template-columns:56px minmax(0,1fr) 210px 170px;gap:9px}
+  .row{grid-template-columns:56px minmax(0,1fr) 210px 220px;gap:9px}
 }
 @media (prefers-reduced-motion: reduce){*{transition:none!important}}
 </style>
@@ -330,6 +336,21 @@ main{padding-top:16px}
     <div class="dlg-links">
       <button type="button" class="linkdel edit" id="dlgEditAct">Editar datos de la actividad</button>
       <button type="button" class="linkdel" id="dlgDel" hidden>Eliminar esta actividad agregada</button>
+    </div>
+  </form>
+</dialog>
+<dialog id="commentDlg">
+  <form method="dialog" id="commentForm">
+    <h3>Comentario de la tarea</h3>
+    <p id="commentS"></p>
+    <label for="commentIn">Comentario</label>
+    <textarea id="commentIn" rows="5" maxlength="1000" placeholder="Escribe una observación sobre la tarea finalizada"></textarea>
+    <div class="dlg-f">
+      <span></span>
+      <div class="r">
+        <button type="button" class="b b-plain" id="commentCancel">Cancelar</button>
+        <button type="submit" class="b b-start">Guardar</button>
+      </div>
     </div>
   </form>
 </dialog>
@@ -448,7 +469,7 @@ function areaKey(v){
 }
 function splitNodos(s){ return (s||"").split(/[,;\s]+/).map(x=>x.trim()).filter(Boolean); }
 
-let times = {};           // id -> {inicio:ms, fin:ms}
+let times = {};           // id -> {inicio:ms, fin:ms, comentario:string}
 let mode = "pending";     // pending | shared | local
 let USER_MODE = true;
 let db = null, coll = null, acoll = null, hcoll = null, mcoll = null;
@@ -520,8 +541,8 @@ function saveLocal(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(times)); 
 
 /* ---------- archivo .txt como base de datos simple ----------
    Actividades agregadas: +ID | FASE | GRUPO | ÁREA | COMPONENTE | PAÍS | NODOS | HORA PLAN | ACTIVIDAD
-   Tiempos, una línea por actividad: ID | INICIO | FIN | DURACIÓN | ÁREA | ACTIVIDAD
-   (de los tiempos solo se leen ID, INICIO y FIN). El archivo se puede editar
+   Tiempos, una línea por actividad: ID | INICIO | FIN | ORDEN | HORA PLAN | DURACIÓN | ÁREA | COMENTARIO | ACTIVIDAD
+   (de los tiempos se leen ID, INICIO, FIN, HORA PLAN y COMENTARIO). El archivo se puede editar
    a mano: la página detecta el cambio y lo recarga. Lo sirve server.py. */
 const API = "api/registros";
 const BASE_IDS = new Set(BASE_ACTS.map(a=>a.id));
@@ -533,7 +554,7 @@ function parseDT(s){
   return m ? new Date(+m[1],m[2]-1,+m[3],+m[4],+m[5],+(m[6]||0)).getTime() : NaN;
 }
 function buildTXT(){
-  const now=Date.now(), col=s=>(s||"").padEnd(19), done=doneInOrder();
+  const now=Date.now(), col=s=>(s||"").replace(/\|/g,"/").replace(/\r?\n/g," ").padEnd(19), done=doneInOrder();
   const lines=[
     "# REGISTROS DE TIEMPOS · Migración Storage Pure Cirion VE",
     "# Este archivo es la base de datos de la página y se puede editar a mano.",
@@ -561,19 +582,19 @@ function buildTXT(){
       return ["*"+a.id, (AREAS[m.area]||{}).label||m.area, m.comp, m.pais, m.nodos.join(", "), m.act].join(" | "); }),
     "",
     "# ---- TIEMPOS ----",
-    "#   ID | INICIO | FIN | ORDEN | HORA PLAN | DURACIÓN | ÁREA | ACTIVIDAD",
+    "#   ID | INICIO | FIN | ORDEN | HORA PLAN | DURACIÓN | ÁREA | COMENTARIO | ACTIVIDAD",
     "#   - Fechas en hora local con formato AAAA-MM-DD HH:MM:SS",
     "#   - INICIO vacío = pendiente · FIN vacío = en curso",
     "#   - HORA PLAN: hora planificada (ej.: 9:00pm, 21:00); vacía = sin hora",
     "#   - ORDEN: posición en que se finalizó la actividad (1 = la primera); se calcula por la hora de FIN",
-    "#   - Solo se leen ID, INICIO, FIN y HORA PLAN; ORDEN, DURACIÓN, ÁREA y ACTIVIDAD son informativos",
+    "#   - Solo se leen ID, INICIO, FIN, HORA PLAN y COMENTARIO; ORDEN, DURACIÓN, ÁREA y ACTIVIDAD son informativos",
     ""
   ];
   const ord=new Map(done.map((a,i)=>[a.id,i+1]));
   for(const a of ACTS){
     const t=times[a.id]||{}, d=dur(a.id,now);
     lines.push([a.id, col(fmtDT(t.inicio)), col(fmtDT(t.fin)), String(ord.get(a.id)||"").padStart(5), hpOf(a).padEnd(9), (d==null?"":fmtDur(d)).padEnd(8),
-      ((AREAS[a.area]||{}).label||a.area).padEnd(11), a.act+(a.nodos.length?" ("+a.nodos.join(", ")+")":"")].join(" | "));
+      ((AREAS[a.area]||{}).label||a.area).padEnd(11), col(t.comentario||""), a.act+(a.nodos.length?" ("+a.nodos.join(", ")+")":"")].join(" | "));
   }
   return lines.join("\r\n")+"\r\n";
 }
@@ -608,7 +629,7 @@ function parseTXT(txt){
     const i0=parseDT(ini), f0=parseDT(fin);
     if(i0==null){ if(f0!=null) bad.push(i+1); return; }
     if(isNaN(i0) || (f0!=null && (isNaN(f0) || f0<i0))){ bad.push(i+1); return; }
-    out[id]={inicio:i0,fin:f0};
+    out[id]={inicio:i0,fin:f0,comentario:p.length>=9?p[7]||"":""};
   });
   bad.sort((a,b)=>a-b);
   return {out,acts,hp,mods:md,bad,rows:lines.some(l=>l && l[0]!=="#")};
@@ -650,7 +671,7 @@ setInterval(async()=>{
 },2000);
 
 async function writeTimes(id, val){
-  if(busy.has(id)) return;
+  if(busy.has(id)) return false;
   busy.add(id);
   const prev = times[id];
   if(val) times[id]=val; else delete times[id];
@@ -662,9 +683,11 @@ async function writeTimes(id, val){
     } else if(mode==="file"){
       await writeFile(); saveLocal();
     } else saveLocal();
+    return true;
   }catch(e){
     if(prev) times[id]=prev; else delete times[id];
     toast(e && e.code==="invalid_argument" ? "No tienes permiso para registrar tiempos en esta página." : "No se pudo guardar. Intenta de nuevo.");
+    return false;
   }finally{ busy.delete(id); render(); }
 }
 
@@ -773,7 +796,10 @@ async function resetAll(){
 $("#resetAllBtn").onclick=()=>{ if(mode!=="pending") resetAll(); };
 
 function startAct(id){ if(status(id)!=="pend") return; writeTimes(id,{inicio:Date.now(),fin:null}); }
-function endAct(id){ if(status(id)!=="run") return; writeTimes(id,{inicio:times[id].inicio,fin:Date.now()}); }
+async function endAct(id){
+  if(status(id)!=="run") return;
+  if(await writeTimes(id,{...times[id],fin:Date.now()})) openComment(id);
+}
 
 /* ---------- rendering ---------- */
 function matches(a){
@@ -808,8 +834,9 @@ function rowHTML(a, now, ord, showPh){
       <div class="dur" ${st==="run"?'data-live="'+a.id+'"':""}>${d==null?"—":fmtDur(d)}${over?'<span class="flag">Supera 1 h</span>':""}</div>
     </div>
     <div class="acts">
-      <button class="b b-start" data-do="start" ${st!=="pend"||dis?"disabled":""} aria-label="Iniciar: ${esc(a.act)}">Iniciar</button>
-      <button class="b b-end" data-do="end" ${st!=="run"||dis?"disabled":""} aria-label="Finalizar: ${esc(a.act)}">Finalizar</button>
+      ${st==="pend"?`<button class="b b-start" data-do="start" ${dis?"disabled":""} aria-label="Iniciar: ${esc(a.act)}">Iniciar</button>`:""}
+      ${st==="run"?`<button class="b b-end" data-do="end" ${dis?"disabled":""} aria-label="Finalizar: ${esc(a.act)}">Finalizar</button>`:""}
+      ${st==="done"?`<button class="comment-btn${t.comentario?" has-comment":""}" data-do="comment" ${dis?"disabled":""}>${t.comentario?"Ver comentario":"Comentario"}</button>`:""}
       <button class="b-more" data-do="edit" ${manageDis?"disabled":""} title="Corregir tiempos o editar la actividad" aria-label="Corregir tiempos: ${esc(a.act)}">⋯</button>
     </div>
   </div>`;
@@ -912,6 +939,7 @@ $("#list").addEventListener("click",e=>{
   else if(b.dataset.do==="hp") openHp(id);
   else if(b.dataset.do==="rstIni") resetIni(id);
   else if(b.dataset.do==="rstFin") resetFin(id);
+  else if(b.dataset.do==="comment") openComment(id);
   else openEdit(id);
 });
 $("#areas").addEventListener("click",e=>{ const b=e.target.closest("[data-area]"); if(!b) return; fArea = fArea===b.dataset.area?null:b.dataset.area; render(); });
@@ -922,6 +950,24 @@ let qT; $("#q").addEventListener("input",e=>{ clearTimeout(qT); qT=setTimeout(()
 
 /* edit dialog */
 let editId=null; const dlg=$("#dlg");
+let commentId=null; const commentDlg=$("#commentDlg");
+function openComment(id){
+  const a=ACTS.find(x=>x.id===id), t=times[id]||{};
+  if(!a || !t.fin) return;
+  commentId=id;
+  $("#commentS").textContent=a.act+(a.nodos.length?" — "+a.nodos.join(", "):"");
+  $("#commentIn").value=t.comentario||"";
+  commentDlg.showModal();
+  $("#commentIn").focus();
+}
+$("#commentCancel").onclick=()=>commentDlg.close();
+$("#commentForm").addEventListener("submit",async e=>{
+  e.preventDefault();
+  if(!commentId || !times[commentId]) return;
+  const id=commentId, comentario=$("#commentIn").value.trim();
+  commentDlg.close();
+  if(await writeTimes(id,{...times[id],comentario})) toast(comentario?"Comentario guardado":"Comentario eliminado");
+});
 function openEdit(id){
   if(USER_MODE) return;
   editId=id; const a=ACTS.find(x=>x.id===id), t=times[id]||{};
@@ -1040,13 +1086,13 @@ $("#dlgForm").addEventListener("submit",e=>{
 function csvCell(v){ v=v==null?"":String(v); return /[";\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v; }
 function buildCSV(){
   const now=Date.now(), ord=finOrder();
-  const head=["Orden fin","Fase","Grupo","Hora plan","País","Componente","Área","Actividad","Nodos","Estado","Inicio","Fin","Duración (hh:mm:ss)","Duración (min)","Supera 1 h"];
+  const head=["Orden fin","Fase","Grupo","Hora plan","País","Componente","Área","Actividad","Nodos","Estado","Inicio","Fin","Duración (hh:mm:ss)","Duración (min)","Supera 1 h","Comentario"];
   const lines=[head.join(";")];
   for(const a of ACTS){
     const st=status(a.id), t=times[a.id]||{}, d=dur(a.id,now);
     lines.push([ord.get(a.id)||"",a.ph,a.sub||"",hpOf(a),a.pais,a.comp,(AREAS[a.area]||{}).label||a.area,a.act,a.nodos.join(" "),
       {pend:"Pendiente",run:"En curso",done:"Finalizada"}[st],fmtDT(t.inicio),fmtDT(t.fin),
-      d==null?"":fmtDur(d), d==null?"":(d/60000).toFixed(1).replace(".",","), d!=null&&d>OVER?"Sí":""].map(csvCell).join(";"));
+      d==null?"":fmtDur(d), d==null?"":(d/60000).toFixed(1).replace(".",","), d!=null&&d>OVER?"Sí":"", t.comentario||""].map(csvCell).join(";"));
   }
   const s=phaseStats(ACTS,now);
   lines.push(""); lines.push(["","Total ventana","","","","","","","","","",fmtDT(s.first),"",fmtDur(s.win),(s.win/60000).toFixed(1).replace(".",",")].map(csvCell).join(";"));

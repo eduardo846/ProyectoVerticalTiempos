@@ -11,6 +11,7 @@ Cirion en Venezuela.
 - Agrupación por fases y áreas.
 - Búsqueda y filtros por estado, área, actividad y nodo.
 - Indicador de actividades que superan 60 minutos.
+- Comentarios asociados a cada actividad finalizada.
 - Persistencia local mediante `localStorage`.
 - Persistencia compartida mediante `server.py` y `registros.txt`.
 - Edición y exportación de información desde el dashboard administrador.
@@ -40,6 +41,7 @@ Inicia sesión con `admin` / `admin`. Permite:
 - Agregar, editar y eliminar actividades.
 - Ajustar horas planificadas.
 - Reiniciar todos los tiempos.
+- Agregar, consultar y actualizar comentarios de tareas finalizadas.
 - Exportar los registros a CSV.
 
 ### Usuario
@@ -47,7 +49,8 @@ Inicia sesión con `admin` / `admin`. Permite:
 Inicia sesión con `user` / `user`. Permite consultar las actividades e iniciar
 o finalizar sus tiempos. No puede modificar la planificación, editar
 registros, agregar actividades, eliminar información, reiniciar tiempos ni
-exportar datos.
+exportar datos. Sí puede agregar, consultar y actualizar comentarios de tareas
+finalizadas.
 
 > Las credenciales actuales se validan en el navegador y son de demostración.
 > Para un entorno productivo se requiere autenticación y autorización en el
@@ -161,6 +164,10 @@ sudo bash deploy/instalar.sh
 
 El instalador reinicia el servicio sin eliminar los registros guardados.
 
+Los comentarios se guardan en la misma línea de cada actividad dentro de
+`registros.txt`. También se incluyen en la exportación CSV. Los comentarios
+existentes se conservan al actualizar la aplicación o reiniciar el servicio.
+
 ## GitHub Actions
 
 El workflow [deploy.yml](.github/workflows/deploy.yml) se ejecuta al hacer
@@ -178,6 +185,15 @@ DEPLOY_KNOWN_HOSTS
 ```
 
 `DEPLOY_PORT` es opcional y utiliza `22` por defecto.
+
+Después de modificar la aplicación o la documentación, publica los cambios en
+`deployment` para activar el despliegue:
+
+```powershell
+git add .
+git commit -m "Actualizar aplicación"
+git push origin deployment
+```
 
 El usuario remoto debe poder ejecutar mediante `sudo`:
 
