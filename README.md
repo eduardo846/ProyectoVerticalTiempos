@@ -18,6 +18,18 @@ Cirion en Venezuela.
 
 ## Modos de acceso
 
+### Inicio de sesión
+
+La aplicación solicita credenciales antes de mostrar el dashboard:
+
+| Usuario | Contraseña | Rol |
+|---|---|---|
+| `admin` | `admin` | Administrador |
+| `user` | `user` | Usuario |
+
+El rol se conserva solo durante la sesión de la pestaña del navegador. Para
+salir, utiliza **Cerrar sesión**.
+
 ### Administrador
 
 Es el modo predeterminado. Permite:
@@ -31,7 +43,8 @@ Es el modo predeterminado. Permite:
 
 ### Usuario
 
-El dashboard restringido se abre agregando `?role=user` a la URL:
+El dashboard restringido se obtiene iniciando sesión con `user` / `user`.
+El parámetro `?role=user` no sustituye las credenciales:
 
 ```text
 http://SERVIDOR:8080/?role=user
@@ -40,12 +53,6 @@ http://SERVIDOR:8080/?role=user
 El usuario puede consultar las actividades e iniciar o finalizar sus tiempos.
 No puede modificar la planificación, editar registros, agregar actividades,
 eliminar información ni exportar datos.
-
-Para volver al dashboard administrador:
-
-```text
-http://SERVIDOR:8080/?role=admin
-```
 
 > El parámetro de URL es una restricción de interfaz. Para un entorno
 > productivo se recomienda agregar autenticación y autorización en el servidor.

@@ -165,6 +165,15 @@ dialog input{width:100%;padding:8px 10px;border:1px solid var(--line);border-rad
 
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:4px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:50;max-width:calc(100% - 32px)}
 .toast.show{opacity:1}
+.auth-screen{position:fixed;inset:0;z-index:100;background:var(--bg);display:grid;place-items:center;padding:20px}
+.auth-card{width:min(100%,380px);background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:24px;box-shadow:0 8px 30px rgba(24,34,45,.12)}
+.auth-card h1{margin:0 0 6px;font:600 28px/1.1 "Barlow Condensed","Arial Narrow",sans-serif}
+.auth-card p{margin:0 0 18px;color:var(--muted)}
+.auth-card label{display:block;margin:12px 0 5px;font-size:13px;font-weight:600}
+.auth-card input{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:4px;background:var(--bg);color:var(--ink);font:inherit}
+.auth-error{min-height:20px;margin-top:10px;color:var(--over);font-size:13px}
+.auth-card .b{width:100%;margin-top:4px}
+.authenticated .auth-screen{display:none}
 @media (prefers-reduced-motion: reduce){*{transition:none!important}}
 </style>
 </head>
@@ -189,6 +198,19 @@ dialog input{width:100%;padding:8px 10px;border:1px solid var(--line);border-rad
     <div class="sync"><span id="syncTxt">Conectando…</span><span id="sumTxt"></span></div>
   </div>
 </header>
+
+<section class="auth-screen" id="authScreen" aria-label="Inicio de sesión">
+  <form class="auth-card" id="authForm">
+    <h1>ProyectoVerticalTiempos</h1>
+    <p>Ingresa tus credenciales para continuar.</p>
+    <label for="authUser">Usuario</label>
+    <input id="authUser" autocomplete="username" required>
+    <label for="authPass">Contraseña</label>
+    <input id="authPass" type="password" autocomplete="current-password" required>
+    <div class="auth-error" id="authError" role="alert"></div>
+    <button class="b b-start" type="submit">Ingresar</button>
+  </form>
+</section>
 
 <main>
   <p class="note"><strong>Regla de contingencia:</strong> máximo 1 hora para solventar un incidente en cada migración. Las actividades que superen 60 minutos se marcan en rojo para evaluar continuidad o rollback.</p>
@@ -349,21 +371,46 @@ function splitNodos(s){ return (s||"").split(/[,;\s]+/).map(x=>x.trim()).filter(
 
 let times = {};           // id -> {inicio:ms, fin:ms}
 let mode = "pending";     // pending | shared | local
-const USER_MODE = new URLSearchParams(location.search).get("role") === "user";
+let USER_MODE = true;
 let db = null, coll = null, acoll = null, hcoll = null, mcoll = null;
 let fStatus = "all", fArea = null, fQuery = "";
 const closed = new Set();
 const busy = new Set();
 
 const $ = s => document.querySelector(s);
-document.body.classList.toggle("user-mode", USER_MODE);
-$("#roleBadge").textContent = USER_MODE ? "Dashboard de usuario · solo iniciar/finalizar" : "Dashboard administrador";
-$("#roleLink").textContent = USER_MODE ? "Dashboard administrador" : "Dashboard de usuario";
-$("#roleLink").href = USER_MODE ? "?role=admin" : "?role=user";
-if(USER_MODE){
-  $("#exportBtn").hidden = true;
-  $("#resetAllBtn").hidden = true;
+function applyRole(role){
+  USER_MODE = role !== "admin";
+  document.body.classList.toggle("authenticated", true);
+  document.body.classList.toggle("user-mode", USER_MODE);
+  $("#roleBadge").textContent = USER_MODE ? "Dashboard de usuario · solo iniciar/finalizar" : "Dashboard administrador";
+  $("#roleLink").textContent = "Cerrar sesión";
+  $("#roleLink").href = "#";
+  $("#exportBtn").hidden = USER_MODE;
+  $("#resetAllBtn").hidden = USER_MODE;
+  if(typeof render === "function") render();
 }
+function login(user, pass){
+  const role = user === "admin" && pass === "admin" ? "admin"
+    : user === "user" && pass === "user" ? "user" : null;
+  if(!role) return false;
+  sessionStorage.setItem("pvt-role", role);
+  applyRole(role);
+  return true;
+}
+$("#authForm").addEventListener("submit", e=>{
+  e.preventDefault();
+  if(!login($("#authUser").value.trim(), $("#authPass").value)){
+    $("#authError").textContent = "Usuario o contraseña incorrectos.";
+    $("#authPass").select();
+  }
+});
+$("#roleLink").addEventListener("click", e=>{
+  e.preventDefault();
+  sessionStorage.removeItem("pvt-role");
+  location.reload();
+});
+const savedRole = sessionStorage.getItem("pvt-role");
+if(savedRole === "admin" || savedRole === "user") applyRole(savedRole);
 const pad = n => String(n).padStart(2,"0");
 function fmtDur(ms){ if(ms==null||ms<0) ms=0; const s=Math.floor(ms/1000); return pad(Math.floor(s/3600))+":"+pad(Math.floor(s%3600/60))+":"+pad(s%60); }
 function fmtTime(ms){ if(!ms) return "—"; const d=new Date(ms); return pad(d.getHours())+":"+pad(d.getMinutes())+":"+pad(d.getSeconds()); }
