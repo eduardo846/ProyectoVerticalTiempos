@@ -1,0 +1,15 @@
+[Unit]
+Description=Cronómetro de migración (registros en registros.txt)
+After=network.target
+
+[Service]
+Type=simple
+User=cronometro
+WorkingDirectory=/opt/cronometro
+Environment=PORT=8080
+Environment=LANG=C.UTF-8 PYTHONIOENCODING=utf-8
+ExecStart=/usr/bin/python3 /opt/cronometro/server.py
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

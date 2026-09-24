@@ -99,7 +99,12 @@ main{max-width:1180px;margin:0 auto;padding:18px 20px 60px}
 .row.running{background:var(--run-bg);border-color:var(--run);border-left-color:var(--c)}
 .row.done{background:var(--done-bg)}
 .row.over{background:var(--over-bg)}
-.hp{font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-weight:600;font-size:17px;color:var(--muted)}
+.hp{font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-weight:600;font-size:17px;color:var(--muted);background:none;border:1px dashed transparent;border-radius:3px;padding:4px 2px;text-align:left;min-height:32px}
+.hp:not(:disabled):hover{border-color:var(--line);color:var(--ink)}
+.hp.empty-hp{font-size:13px;font-weight:500;color:transparent}
+.row:hover .hp.empty-hp{color:var(--muted)}
+.hp.adj{color:var(--start)}
+.hp.adj::after{content:"•";margin-left:2px;font-size:12px;vertical-align:top}
 .act{min-width:0}
 .act .name{font-weight:600;font-size:15px;overflow-wrap:anywhere}
 .act .meta{font-size:12.5px;color:var(--muted);display:flex;flex-wrap:wrap;gap:4px 10px;margin-top:2px}
@@ -107,7 +112,11 @@ main{max-width:1180px;margin:0 auto;padding:18px 20px 60px}
 .nodes{overflow-wrap:anywhere}
 .times{display:grid;grid-template-columns:1fr 1fr;gap:2px 10px;font-size:13px}
 .times .k{color:var(--muted);font-size:11.5px}
-.times .v{font-weight:600}
+.times .v{font-weight:600;display:flex;align-items:center;gap:6px;min-height:22px}
+.ord{font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-weight:700;font-size:13px;color:var(--done);background:var(--done-bg);border-radius:3px;padding:1px 6px}
+.rst{background:none;border:1px solid var(--line);border-radius:3px;color:var(--muted);font-size:13px;line-height:1;padding:2px 5px}
+.rst:not(:disabled):hover{color:var(--over);border-color:var(--over)}
+.btn-danger{border-color:var(--over);color:var(--over)}
 .dur{grid-column:1/-1;font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-size:22px;font-weight:600;line-height:1.1;margin-top:2px}
 .row.running .dur{color:var(--run)}
 .row.over .dur{color:var(--over)}
@@ -134,6 +143,15 @@ dialog::backdrop{background:rgba(10,16,22,.5)}
 dialog h3{margin:0 0 4px;font-size:18px}
 dialog p{margin:0 0 14px;color:var(--muted);font-size:13.5px}
 dialog label{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px}
+dialog select{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:4px;background:var(--bg);color:var(--ink);font:inherit}
+dialog .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.add{display:block;width:100%;margin-top:6px;padding:9px 12px;border:1px dashed var(--line);border-radius:3px;background:none;color:var(--start);font:inherit;font-weight:600;text-align:left}
+.add:hover{border-color:var(--start)}
+.tag.new{color:var(--muted);font-weight:500;border:1px solid var(--line);border-radius:3px;padding:0 5px}
+.linkdel{background:none;border:0;padding:0;color:var(--over);font:inherit;font-size:13.5px;text-decoration:underline}
+.linkdel.edit{color:var(--start)}
+.dlg-links{display:flex;gap:18px;flex-wrap:wrap;margin-top:14px}
+dialog select:disabled{opacity:.6}
 dialog input{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:4px;background:var(--bg);color:var(--ink);font:inherit}
 .dlg-f{display:flex;gap:8px;justify-content:space-between;margin-top:18px;flex-wrap:wrap}
 .dlg-f .r{display:flex;gap:8px}
@@ -180,6 +198,7 @@ dialog input{width:100%;padding:8px 10px;border:1px solid var(--line);border-rad
       <button data-st="done" aria-pressed="false">Finalizadas</button>
     </div>
     <button class="btn-ghost" id="exportBtn" hidden>Descargar Excel (CSV)</button>
+    <button class="btn-ghost btn-danger" id="resetAllBtn" title="Borra el inicio y el fin de todas las actividades">Reiniciar todos los tiempos</button>
   </div>
 
   <div id="list"></div>
@@ -200,24 +219,130 @@ dialog input{width:100%;padding:8px 10px;border:1px solid var(--line);border-rad
         <button type="submit" class="b b-start" id="dlgSave">Guardar</button>
       </div>
     </div>
+    <div class="dlg-links">
+      <button type="button" class="linkdel edit" id="dlgEditAct">Editar datos de la actividad</button>
+      <button type="button" class="linkdel" id="dlgDel" hidden>Eliminar esta actividad agregada</button>
+    </div>
+  </form>
+</dialog>
+<dialog id="cfDlg">
+  <form method="dialog" id="cfForm">
+    <h3 id="cfT"></h3>
+    <p id="cfM"></p>
+    <div class="dlg-f">
+      <span></span>
+      <div class="r">
+        <button type="button" class="b b-plain" id="cfNo">Cancelar</button>
+        <button type="submit" class="b b-danger" id="cfYes">Aceptar</button>
+      </div>
+    </div>
+  </form>
+</dialog>
+<dialog id="hpDlg">
+  <form method="dialog" id="hpForm">
+    <h3>Hora plan</h3>
+    <p id="hpS"></p>
+    <label for="hpIn">Hora planificada de inicio</label>
+    <input type="time" id="hpIn">
+    <p id="hpOrig" style="margin:8px 0 0"></p>
+    <div class="dlg-f">
+      <div class="r">
+        <button type="button" class="b b-danger" id="hpClear">Quitar hora</button>
+        <button type="button" class="b b-plain" id="hpRestore">Restaurar</button>
+      </div>
+      <div class="r">
+        <button type="button" class="b b-plain" id="hpCancel">Cancelar</button>
+        <button type="submit" class="b b-start">Guardar</button>
+      </div>
+    </div>
+  </form>
+</dialog>
+<dialog id="addDlg">
+  <form method="dialog" id="addForm">
+    <h3 id="addT">Agregar actividad</h3>
+    <p id="addP">Se guarda en registros.txt junto con los tiempos.</p>
+    <label for="aPh">Fase</label>
+    <select id="aPh"></select>
+    <div id="aSubW"><label for="aSub">Grupo</label><select id="aSub"></select></div>
+    <label for="aAct">Actividad</label>
+    <input id="aAct" maxlength="200" placeholder="Ej.: STOP servicio X" autocomplete="off">
+    <div class="two">
+      <div><label for="aArea">Área</label><select id="aArea"></select></div>
+      <div><label for="aPais">País</label><select id="aPais"><option>VE</option><option>CO</option><option>AR</option></select></div>
+    </div>
+    <label for="aComp">Componente</label>
+    <input id="aComp" list="compList" placeholder="Opcional" autocomplete="off"><datalist id="compList"></datalist>
+    <label for="aNodos">Nodos</label>
+    <input id="aNodos" placeholder="Opcional, separados por coma: ALVEP056, ALVEP057" autocomplete="off">
+    <label for="aHp">Hora plan</label>
+    <input id="aHp" placeholder="Opcional, ej.: 9:00pm" autocomplete="off">
+    <div class="dlg-f">
+      <div class="r"><button type="button" class="b b-plain" id="addRestore" hidden>Restaurar original</button></div>
+      <div class="r">
+        <button type="button" class="b b-plain" id="addCancel">Cancelar</button>
+        <button type="submit" class="b b-start" id="addOk">Agregar</button>
+      </div>
+    </div>
   </form>
 </dialog>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script>
-const ACTS = [{"ph": "ACTIVIDADES PREVIAS", "sub": null, "hp": "", "pais": "VE", "comp": "Virtual Machine", "area": "ADMINSO", "act": "Merchant - Jueves previo", "nodos": [], "id": "a001"}, {"ph": "ACTIVIDADES PREVIAS", "sub": null, "hp": "", "pais": "VE", "comp": "Aplicación", "area": "SOP APP", "act": "Adelantar y finalización de cadena de la XD/ TP/ Assorment", "nodos": [], "id": "a002"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "9:00pm", "pais": "VE", "comp": "Aplicación", "area": "SOP APP", "act": "STOP AGENTES AWA de Venezuela y de Colombia y bajada de aplicación", "nodos": ["ALVEP096", "ALVEP097"], "id": "a003"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Weblogic", "area": "MIDDLEWARE", "act": "STOP RIB", "nodos": [], "id": "a004"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "", "area": "MIDDLEWARE", "act": "Bajar el RIB COMPLETO (SIM/XCENTER/ATOM/BDOS/OID/ODI/FTS/BIP)", "nodos": ["ALVEP056"], "id": "a005"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "", "area": "DBA", "act": "STOP BASE DATOS RIB", "nodos": ["DLVEP040", "DLVEP041"], "id": "a006"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Aplicación", "area": "MIDDLEWARE", "act": "STOP RMS APP", "nodos": ["ALVEP090", "ALVEP091"], "id": "a007"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Aplicación", "area": "MIDDLEWARE", "act": "STOP RPM APP", "nodos": ["ALVEP086", "ALVEP087"], "id": "a008"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Aplicación", "area": "MIDDLEWARE", "act": "STOP RESA APP", "nodos": ["ALVEP090", "ALVEP091"], "id": "a009"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Aplicación", "area": "MIDDLEWARE", "act": "STOP REIM APP", "nodos": ["ALVEP088", "ALVEP089"], "id": "a010"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Aplicación", "area": "MIDDLEWARE", "act": "STOP ALLOC APP", "nodos": ["ALVEP092", "ALVEP093"], "id": "a011"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Base de Datos", "area": "DBA", "act": "STOP BASE DATOS MOM-RMS", "nodos": ["DLVEP064", "DLVEP065"], "id": "a012"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Base de Datos", "area": "DBA", "act": "STOP BASE DATOS AWA", "nodos": ["DLVEP059", "DLVEP060"], "id": "a013"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Weblogic", "area": "MIDDLEWARE", "act": "STOP OBIEE-DWH", "nodos": ["ALVEP070", "ALVEP071", "ALVEP075"], "id": "a014"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Base de Datos", "area": "DBA", "act": "STOP BASE DE DATOS DE OBIEE", "nodos": ["DLVEP045", "DLVEP046"], "id": "a015"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Weblogic", "area": "MIDDLEWARE", "act": "STOP EBS AR", "nodos": ["ALARP000", "ALARP001"], "id": "a016"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "", "area": "DBA", "act": "STOP BASE DATOS EBS AR", "nodos": ["DLARP000", "DLARP001"], "id": "a017"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Weblogic", "area": "MIDDLEWARE", "act": "STOP EBS VE", "nodos": ["ALVEP072", "ALVEP073"], "id": "a018"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "", "area": "DBA", "act": "STOP BASE DATOS EBS VE", "nodos": ["DLVEP073"], "id": "a019"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Weblogic", "area": "MIDDLEWARE", "act": "STOP EBS VE", "nodos": ["ALVEP080", "ALVEP081"], "id": "a020"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "", "area": "DBA", "act": "STOP BASE DATOS EBS VE", "nodos": ["DLVEP080", "DLVEP081"], "id": "a021"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Weblogic", "area": "MIDDLEWARE", "act": "STOP ODI", "nodos": ["ALVEP041", "ALVEP042"], "id": "a022"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Base de Datos", "area": "DBA", "act": "STOP BASE DE DATOS DE ODI", "nodos": ["DLVEP030", "DLVEP031"], "id": "a023"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "CO", "comp": "Weblogic", "area": "MIDDLEWARE", "act": "STOP OBIEE", "nodos": ["ALCOP010", "ALCOP011"], "id": "a024"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "CO", "comp": "Base de Datos", "area": "DBA", "act": "STOP BASE DE DATOS DEOBIEE", "nodos": ["DLCOP004", "DLCOP005"], "id": "a025"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "10:00pm", "pais": "VE", "comp": "Weblogic", "area": "MIDDLEWARE", "act": "STOP FTS - PORTAL DE ITEMS (Validar cambio de Precios)", "nodos": ["ALVEP039", "ALVEP040"], "id": "a026"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Base de Datos", "area": "DBA", "act": "STOP BASE DE DATOS DE FTS", "nodos": ["DLVEP028", "DLVEP029"], "id": "a027"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Weblogic", "area": "MIDDLEWARE", "act": "STOP BDOS", "nodos": ["ALVEP062", "ALVEP066", "ALVEP067", "ALVEP069", "ALVEP063", "ALVEP068"], "id": "a028"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Base de Datos", "area": "DBA", "act": "STOP BASE DE DATOS DE BDOS", "nodos": ["DLVEP025"], "id": "a029"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "10:00pm", "pais": "VE", "comp": "Weblogic", "area": "MIDDLEWARE", "act": "STOP SIM", "nodos": ["ALVEP084", "ALVEP085"], "id": "a030"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Base de Datos", "area": "DBA", "act": "STOP BASE DE DATOS DE SIM", "nodos": ["DLVEP062", "DLVEP063"], "id": "a031"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Weblogic", "area": "MIDDLEWARE", "act": "STOP OID", "nodos": ["ALCOP012", "ALCOP013"], "id": "a032"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Base de Datos", "area": "DBA", "act": "STOP BASE DE DATOS DE OID", "nodos": ["DLCOP006", "DLCOP007"], "id": "a033"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Weblogic", "area": "MIDDLEWARE", "act": "STOP ATOM", "nodos": ["ALVEP043", "ALVEP044"], "id": "a034"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "", "area": "DBA", "act": "STOP BASE DE DATOS DE ATOM", "nodos": ["DLVEP032", "DLVEP033"], "id": "a035"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Weblogic", "area": "MIDDLEWARE", "act": "STOP XCENTER Y DETENER RTLOGS", "nodos": ["ALVEP045", "ALVEP046"], "id": "a036"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Base de Datos", "area": "DBA", "act": "STOP BASE DE DATOS DE xcenter", "nodos": ["DLVEP034", "DLVEP035"], "id": "a037"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Aplicación", "area": "SOP APP", "act": "STOP RECARGAS", "nodos": ["ALVEP017", "ALVEP018"], "id": "a038"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Weblogic", "area": "DBA", "act": "STOP BD RECARGAS", "nodos": ["DLVEP072"], "id": "a039"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Weblogic", "area": "MIDDLEWARE", "act": "STOP BIP", "nodos": ["ALVEP094", "ALVEP095", "ALVEP054"], "id": "a040"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Base de Datos", "area": "DBA", "act": "STOP BASE DE DATOS DE BIP", "nodos": ["DLVEP067", "DLVEP068"], "id": "a041"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Virtual Machine", "area": "ADMINSO", "act": "STOP FILESERVER", "nodos": ["FLVEP001"], "id": "a042"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Virtual Machine", "area": "ADMINSO", "act": "STOP GEPE", "nodos": ["ALVEP000"], "id": "a043"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Weblogic", "area": "MIDDLEWARE", "act": "Stop App", "nodos": ["ALVEP000"], "id": "a044"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Base de Datos", "area": "DBA", "act": "Stop BD", "nodos": ["ALVEP000"], "id": "a045"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Virtual Machine", "area": "ADMINSO", "act": "Apagado de VM en VMware de CIRIION", "nodos": ["FLVEP001"], "id": "a046"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Virtual Machine", "area": "ADMINSO", "act": "Apagado CITIRIX", "nodos": ["HLVEP069"], "id": "a047"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Virtual Machine", "area": "ADMINSO", "act": "Apagado Blanceador CITIRIX", "nodos": ["HLVEP043"], "id": "a048"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Virtual Machine", "area": "ADMINSO", "act": "Apagado Dashboard CISCO", "nodos": ["HLVEP049"], "id": "a049"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Virtual Machine", "area": "ADMINSO", "act": "Apagado BD DOCUSHARE", "nodos": ["DLVEP069"], "id": "a050"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Virtual Machine", "area": "ADMINSO", "act": "Apagado de N8N", "nodos": ["HLVEP063", "HLVEP068", "HLVEP071"], "id": "a051"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Virtual Machine", "area": "ADMINSO", "act": "Apagado Portal Vacaciones", "nodos": ["DLVEP071"], "id": "a052"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Virtual Machine", "area": "ADMINSO", "act": "Apagado SIEM", "nodos": ["HLVEP072"], "id": "a053"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Virtual Machine", "area": "ADMINSO", "act": "Apagado SOMMER", "nodos": ["HLVEP070"], "id": "a054"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Virtual Machine", "area": "ADMINSO", "act": "Apagado SPI CO", "nodos": ["DLCOP025", "DLCOP026"], "id": "a055"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Virtual Machine", "area": "ADMINSO", "act": "Apagado SPI VE", "nodos": ["DLVEP049", "DLVEP050"], "id": "a056"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Virtual Machine", "area": "ADMINSO", "act": "Apagado SFTP", "nodos": ["ALCOP037", "ALVEP078"], "id": "a057"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Virtual Machine", "area": "ADMINSO", "act": "Apagado OSRM", "nodos": ["ALVEP362", "ALVED368"], "id": "a058"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Virtual Machine", "area": "ADMINSO", "act": "Apagado MAILL3", "nodos": ["ALVEP009"], "id": "a059"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Virtual Machine", "area": "ADMINSO", "act": "Apagado DEV MIDDLEWARE", "nodos": ["ALVEP027"], "id": "a060"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Virtual Machine", "area": "ADMINSO", "act": "Apagado Chat Armirene", "nodos": ["ALVEP079"], "id": "a061"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "CO", "comp": "Virtual Machine", "area": "ADMINSO", "act": "Apagado DIAN Historico", "nodos": ["DLCOP058"], "id": "a062"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Virtual Machine", "area": "ADMINSO", "act": "Apagado IBM Governance - Seguridad", "nodos": ["DLVEP066"], "id": "a063"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Virtual Machine", "area": "ADMINSO", "act": "Apagado FS CO", "nodos": ["FLCOP000"], "id": "a064"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Virtual Machine", "area": "ADMINSO", "act": "Apagado MCP", "nodos": ["HLVEP000"], "id": "a065"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Virtual Machine", "area": "ADMINSO", "act": "Apache FTS", "nodos": ["WLVEP002", "WLVEP003"], "id": "a066"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Virtual Machine", "area": "ADMINSO", "act": "Apache BDOS", "nodos": ["WLVEP004", "WLVEP005"], "id": "a067"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Virtual Machine", "area": "ADMINSO", "act": "Apache Lectoras de precio PAC", "nodos": ["WLVEP010"], "id": "a068"}, {"ph": "INICIO DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Weblogic", "area": "MIDDLEWARE", "act": "START FILESERVER", "nodos": ["FLVEP001"], "id": "a069"}, {"ph": "INICIO DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Servicio", "area": "SOP APP", "act": "START AWA", "nodos": [], "id": "a070"}, {"ph": "INICIO DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Weblogic", "area": "DBA", "act": "Subir base Datos", "nodos": ["DLVEP059", "DLVEP060"], "id": "a071"}, {"ph": "INICIO DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Weblogic", "area": "MIDDLEWARE", "act": "Subir app", "nodos": ["ALVEP096", "ALVEP097"], "id": "a072"}, {"ph": "INICIO DE SERVICIOS", "sub": "START OID", "hp": "", "pais": "VE", "comp": "Base de Datos", "area": "DBA", "act": "Subir base Datos", "nodos": ["DLCOP006", "DLCOP007"], "id": "a073"}, {"ph": "INICIO DE SERVICIOS", "sub": "START OID", "hp": "", "pais": "VE", "comp": "Weblogic", "area": "MIDDLEWARE", "act": "Subir app", "nodos": ["ALCOP012", "ALCOP013"], "id": "a074"}, {"ph": "INICIO DE SERVICIOS", "sub": "START OID", "hp": "", "pais": "VE", "comp": "Aplicación", "area": "SOP APP", "act": "Subir solo los Agente de AWA de Colombia Para iniciar la cadena En Colombia", "nodos": [], "id": "a075"}, {"ph": "INICIO DE SERVICIOS", "sub": "START XCENTER VE", "hp": "", "pais": "VE", "comp": "Weblogic", "area": "DBA", "act": "Subir base Datos", "nodos": ["DLVEP034", "DLVEP035"], "id": "a076"}, {"ph": "INICIO DE SERVICIOS", "sub": "START XCENTER VE", "hp": "", "pais": "VE", "comp": "Weblogic", "area": "MIDDLEWARE", "act": "Subir app", "nodos": ["ALVEP045", "ALVEP046"], "id": "a077"}, {"ph": "INICIO DE SERVICIOS", "sub": "START ATOM", "hp": "", "pais": "VE", "comp": "Weblogic", "area": "MIDDLEWARE", "act": "Subir el Weblogic", "nodos": ["ALVEP043", "ALVEP044"], "id": "a078"}, {"ph": "INICIO DE SERVICIOS", "sub": "START ATOM", "hp": "", "pais": "VE", "comp": "Servicio", "area": "SOP APP", "act": "Verificacion de servicios ATOM", "nodos": [], "id": "a079"}, {"ph": "INICIO DE SERVICIOS", "sub": "START SIM", "hp": "", "pais": "VE", "comp": "Servicio", "area": "DBA", "act": "Subir cluster y base de datos SIMVE y realizar validación detallada de los servicios de BD.", "nodos": ["DLVEP062", "DLVEP063"], "id": "a080"}, {"ph": "INICIO DE SERVICIOS", "sub": "START SIM", "hp": "", "pais": "VE", "comp": "Servicio", "area": "MIDDLEWARE", "act": "Subir el Weblogic/voice link", "nodos": ["ALVEP084", "ALVEP085"], "id": "a081"}, {"ph": "INICIO DE SERVICIOS", "sub": "START SIM", "hp": "", "pais": "VE", "comp": "Aplicación", "area": "SOP APP", "act": "START RECARGAS", "nodos": [], "id": "a082"}, {"ph": "INICIO DE SERVICIOS", "sub": "START SIM", "hp": "", "pais": "VE", "comp": "Weblogic", "area": "DBA", "act": "Subir base Datos", "nodos": ["DLVEP072"], "id": "a083"}, {"ph": "INICIO DE SERVICIOS", "sub": "START SIM", "hp": "", "pais": "VE", "comp": "Weblogic", "area": "MIDDLEWARE", "act": "Subir app", "nodos": ["ALVEP017", "ALVEP018"], "id": "a084"}, {"ph": "INICIO DE SERVICIOS", "sub": "START BDOS", "hp": "", "pais": "VE", "comp": "Base de Datos", "area": "DBA", "act": "Subir base Datos", "nodos": ["DLVEP025"], "id": "a085"}, {"ph": "INICIO DE SERVICIOS", "sub": "START BDOS", "hp": "", "pais": "VE", "comp": "Virtual Machine", "area": "ADMINSO", "act": "Apache BDOS", "nodos": ["WLVEP004", "WLVEP005"], "id": "a086"}, {"ph": "INICIO DE SERVICIOS", "sub": "START BDOS", "hp": "", "pais": "VE", "comp": "Weblogic", "area": "MIDDLEWARE", "act": "Subir app", "nodos": ["ALVEP062", "ALVEP066", "ALVEP067", "ALVEP069", "ALVEP063", "DLVEP026", "ALVEP068", "DLVEP027"], "id": "a087"}, {"ph": "INICIO DE SERVICIOS", "sub": "START BDOS", "hp": "", "pais": "VE", "comp": "Virtual Machine", "area": "ADMINSO", "act": "Apache Lectoras de precio PAC", "nodos": ["WLVEP010"], "id": "a088"}, {"ph": "INICIO DE SERVICIOS", "sub": "START BDOS", "hp": "", "pais": "VE", "comp": "Servicio", "area": "SOP APP", "act": "Verificacion de servicios", "nodos": [], "id": "a089"}, {"ph": "INICIO DE SERVICIOS", "sub": "START FTS - PORTAL ITEM", "hp": "", "pais": "VE", "comp": "Base de Datos", "area": "DBA", "act": "Subir cluster y base de datos FTSVE y realizar validación detallada de los servicios de BD.", "nodos": ["DLVEP028", "DLVEP029"], "id": "a090"}, {"ph": "INICIO DE SERVICIOS", "sub": "START FTS - PORTAL ITEM", "hp": "", "pais": "VE", "comp": "Virtual Machine", "area": "ADMINSO", "act": "Apache FTS", "nodos": ["WLVEP002", "WLVEP003"], "id": "a091"}, {"ph": "INICIO DE SERVICIOS", "sub": "START FTS - PORTAL ITEM", "hp": "", "pais": "VE", "comp": "Weblogic", "area": "MIDDLEWARE", "act": "Subir el Weblogic", "nodos": ["ALVEP039", "ALVEP040"], "id": "a092"}, {"ph": "INICIO DE SERVICIOS", "sub": "START FTS - PORTAL ITEM", "hp": "", "pais": "VE", "comp": "Servicio", "area": "SOP APP", "act": "Verificacion de servicios FTS", "nodos": [], "id": "a093"}, {"ph": "INICIO DE SERVICIOS", "sub": "START ODI", "hp": "", "pais": "VE", "comp": "Base de Datos", "area": "DBA", "act": "Subir base Datos", "nodos": ["DLVEP030", "DLVEP031"], "id": "a094"}, {"ph": "INICIO DE SERVICIOS", "sub": "START ODI", "hp": "", "pais": "VE", "comp": "Weblogic", "area": "MIDDLEWARE", "act": "Subir app", "nodos": ["ALVEP041", "ALVEP042"], "id": "a095"}, {"ph": "INICIO DE SERVICIOS", "sub": "START ODI", "hp": "", "pais": "VE", "comp": "Servicio", "area": "SOP APP", "act": "Verificacion de servicios", "nodos": [], "id": "a096"}, {"ph": "INICIO DE SERVICIOS", "sub": "START MOM", "hp": "", "pais": "VE", "comp": "Base de Datos", "area": "DBA", "act": "Subir cluster y base de datos MOMVE y realizar validación detallada de los servicios de BD.", "nodos": ["DLVEP064", "DLVEP065"], "id": "a097"}, {"ph": "INICIO DE SERVICIOS", "sub": "START MOM", "hp": "", "pais": "VE", "comp": "Base de Datos", "area": "DBA", "act": "Verificar ultimos registros en DB - SOP APP", "nodos": ["DLVEP064", "DLVEP065"], "id": "a098"}, {"ph": "INICIO DE SERVICIOS", "sub": "START MOM", "hp": "", "pais": "VE", "comp": "Weblogic", "area": "MIDDLEWARE", "act": "START RPM APP", "nodos": ["ALVEP086", "ALVEP087"], "id": "a099"}, {"ph": "INICIO DE SERVICIOS", "sub": "START MOM", "hp": "", "pais": "VE", "comp": "Weblogic", "area": "MIDDLEWARE", "act": "START REIM APP", "nodos": ["ALVEP088", "ALVEP089"], "id": "a100"}, {"ph": "INICIO DE SERVICIOS", "sub": "START MOM", "hp": "", "pais": "VE", "comp": "Weblogic", "area": "MIDDLEWARE", "act": "START RMS APP", "nodos": ["ALVEP090", "ALVEP091"], "id": "a101"}, {"ph": "INICIO DE SERVICIOS", "sub": "START MOM", "hp": "", "pais": "VE", "comp": "Weblogic", "area": "MIDDLEWARE", "act": "SART RESA APP", "nodos": ["ALVEP090", "ALVEP091"], "id": "a102"}, {"ph": "INICIO DE SERVICIOS", "sub": "START MOM", "hp": "", "pais": "VE", "comp": "Weblogic", "area": "MIDDLEWARE", "act": "START ALLOC APP", "nodos": ["ALVEP092", "ALVEP093"], "id": "a103"}, {"ph": "INICIO DE SERVICIOS", "sub": "START MOM", "hp": "", "pais": "VE", "comp": "Weblogic", "area": "MIDDLEWARE", "act": "START RIB RMS", "nodos": ["ALVEP056"], "id": "a104"}, {"ph": "INICIO DE SERVICIOS", "sub": "START BIP", "hp": "", "pais": "VE", "comp": "Base de Datos", "area": "DBA", "act": "Subir base Datos", "nodos": ["DLVEP067", "DLVEP068"], "id": "a105"}, {"ph": "INICIO DE SERVICIOS", "sub": "START BIP", "hp": "", "pais": "VE", "comp": "Weblogic", "area": "MIDDLEWARE", "act": "Subir app", "nodos": ["ALVEP094", "ALVEP095"], "id": "a106"}, {"ph": "INICIO DE SERVICIOS", "sub": "START BIP", "hp": "", "pais": "VE", "comp": "Servicio", "area": "SOP APP", "act": "Verificacion de servicios", "nodos": [], "id": "a107"}, {"ph": "INICIO DE SERVICIOS", "sub": "START BIP", "hp": "", "pais": "VE", "comp": "Servicio", "area": "MIDDLEWARE", "act": "START RIB COMPLETO", "nodos": [], "id": "a108"}, {"ph": "INICIO DE SERVICIOS", "sub": "START BIP", "hp": "", "pais": "VE", "comp": "Base de Datos", "area": "DBA", "act": "Subir base Datos", "nodos": ["DLVEP040", "DLVEP041"], "id": "a109"}, {"ph": "INICIO DE SERVICIOS", "sub": "START BIP", "hp": "", "pais": "VE", "comp": "Weblogic", "area": "MIDDLEWARE", "act": "Subir app", "nodos": ["ALVEP056"], "id": "a110"}, {"ph": "INICIO DE SERVICIOS", "sub": "START BIP", "hp": "", "pais": "VE", "comp": "Servicio", "area": "MIDDLEWARE", "act": "START AGENTES DE AWA DE VENEZUELA", "nodos": [], "id": "a111"}, {"ph": "INICIO DE SERVICIOS", "sub": "START BIP", "hp": "", "pais": "AR", "comp": "Weblogic", "area": "MIDDLEWARE", "act": "START EBS AR", "nodos": [], "id": "a112"}, {"ph": "INICIO DE SERVICIOS", "sub": "START BIP", "hp": "", "pais": "AR", "comp": "Base de Datos", "area": "DBA", "act": "Subir BD", "nodos": ["DLARP000", "DLARP001"], "id": "a113"}, {"ph": "INICIO DE SERVICIOS", "sub": "START BIP", "hp": "", "pais": "AR", "comp": "Weblogic", "area": "MIDDLEWARE", "act": "Subir App", "nodos": ["ALARP000", "ALARP001"], "id": "a114"}, {"ph": "INICIO DE SERVICIOS", "sub": "START BIP", "hp": "", "pais": "VE", "comp": "Weblogic", "area": "MIDDLEWARE", "act": "START EBS VE", "nodos": [], "id": "a115"}, {"ph": "INICIO DE SERVICIOS", "sub": "START BIP", "hp": "", "pais": "VE", "comp": "Base de Datos", "area": "DBA", "act": "Subir BD", "nodos": ["DLVEPO073"], "id": "a116"}, {"ph": "INICIO DE SERVICIOS", "sub": "START BIP", "hp": "", "pais": "VE", "comp": "Weblogic", "area": "MIDDLEWARE", "act": "Subir App", "nodos": ["ALVEP072", "ALVEP073"], "id": "a117"}, {"ph": "INICIO DE SERVICIOS", "sub": "START BIP", "hp": "", "pais": "VE", "comp": "Weblogic", "area": "MIDDLEWARE", "act": "START EBS VE", "nodos": [], "id": "a118"}, {"ph": "INICIO DE SERVICIOS", "sub": "START BIP", "hp": "", "pais": "VE", "comp": "Base de Datos", "area": "DBA", "act": "Subir BD", "nodos": ["DLVEP080", "DLVEP081"], "id": "a119"}, {"ph": "INICIO DE SERVICIOS", "sub": "START BIP", "hp": "", "pais": "VE", "comp": "Weblogic", "area": "MIDDLEWARE", "act": "Subir App", "nodos": ["ALVEP080", "ALVEP081"], "id": "a120"}, {"ph": "INICIO DE SERVICIOS", "sub": "START BIP", "hp": "", "pais": "VE", "comp": "Aplicación", "area": "MIDDLEWARE", "act": "START OBIEE - DWH", "nodos": [], "id": "a121"}, {"ph": "INICIO DE SERVICIOS", "sub": "START BIP", "hp": "", "pais": "VE", "comp": "Base de Datos", "area": "DBA", "act": "Subir BD", "nodos": ["DLVEP045", "DLVEP046"], "id": "a122"}, {"ph": "INICIO DE SERVICIOS", "sub": "START BIP", "hp": "", "pais": "VE", "comp": "Weblogic", "area": "MIDDLEWARE", "act": "Subir App", "nodos": ["ALVEP070", "ALVEP071", "ALVEP075"], "id": "a123"}, {"ph": "INICIO DE SERVICIOS", "sub": "START BIP", "hp": "", "pais": "CO", "comp": "Aplicación", "area": "MIDDLEWARE", "act": "START OBIEE", "nodos": [], "id": "a124"}, {"ph": "INICIO DE SERVICIOS", "sub": "START BIP", "hp": "", "pais": "CO", "comp": "Base de Datos", "area": "DBA", "act": "Subir BD", "nodos": ["DLCOP004", "DLCOP005"], "id": "a125"}, {"ph": "INICIO DE SERVICIOS", "sub": "START BIP", "hp": "", "pais": "CO", "comp": "Weblogic", "area": "MIDDLEWARE", "act": "Dejar apagadas por indicaciones de GI", "nodos": ["ALCOP010", "ALCOP011"], "id": "a126"}, {"ph": "INICIO DE SERVICIOS", "sub": "Prebas de APP", "hp": "", "pais": "VE", "comp": "Servicio", "area": "SOP APP", "act": "Pruebas de procesos SLIM4", "nodos": [], "id": "a127"}, {"ph": "INICIO DE SERVICIOS", "sub": "Prebas de APP", "hp": "", "pais": "VE", "comp": "Servicio", "area": "SOP APP", "act": "FTD EDI RMS", "nodos": [], "id": "a128"}, {"ph": "INICIO DE SERVICIOS", "sub": "Prebas de APP", "hp": "", "pais": "VE", "comp": "Servicio", "area": "SOP APP", "act": "Inicio de la cadena Colombia y Venezuela", "nodos": [], "id": "a129"}, {"ph": "INICIO DE SERVICIOS", "sub": "Validación de Medio digitales XCENTER/ATOM/RMS", "hp": "", "pais": "VE", "comp": "Virtual Machine", "area": "ADMINSO", "act": "Subir CITIRIX", "nodos": ["HLVEP069"], "id": "a130"}, {"ph": "INICIO DE SERVICIOS", "sub": "Validación de Medio digitales XCENTER/ATOM/RMS", "hp": "", "pais": "VE", "comp": "Virtual Machine", "area": "ADMINSO", "act": "Subir Blanceador CITIRIX", "nodos": ["HLVEP043"], "id": "a131"}, {"ph": "INICIO DE SERVICIOS", "sub": "Validación de Medio digitales XCENTER/ATOM/RMS", "hp": "", "pais": "VE", "comp": "Virtual Machine", "area": "ADMINSO", "act": "Subir Dashboard CISCO", "nodos": ["HLVEP049"], "id": "a132"}, {"ph": "INICIO DE SERVICIOS", "sub": "Validación de Medio digitales XCENTER/ATOM/RMS", "hp": "", "pais": "VE", "comp": "Virtual Machine", "area": "ADMINSO", "act": "Subir BD DOCUSHARE", "nodos": ["DLVEP069"], "id": "a133"}, {"ph": "INICIO DE SERVICIOS", "sub": "Validación de Medio digitales XCENTER/ATOM/RMS", "hp": "", "pais": "VE", "comp": "Virtual Machine", "area": "ADMINSO", "act": "Subir de N8N", "nodos": ["HLVEP063", "HLVEP068", "HLVEP071"], "id": "a134"}, {"ph": "INICIO DE SERVICIOS", "sub": "Validación de Medio digitales XCENTER/ATOM/RMS", "hp": "", "pais": "VE", "comp": "Virtual Machine", "area": "ADMINSO", "act": "Subir Portal Vacaciones", "nodos": ["DLVEP071"], "id": "a135"}, {"ph": "INICIO DE SERVICIOS", "sub": "Validación de Medio digitales XCENTER/ATOM/RMS", "hp": "", "pais": "VE", "comp": "Virtual Machine", "area": "ADMINSO", "act": "Subir SIEM", "nodos": ["HLVEP072"], "id": "a136"}, {"ph": "INICIO DE SERVICIOS", "sub": "Validación de Medio digitales XCENTER/ATOM/RMS", "hp": "", "pais": "VE", "comp": "Virtual Machine", "area": "ADMINSO", "act": "Subir SOMMER", "nodos": ["HLVEP070"], "id": "a137"}, {"ph": "INICIO DE SERVICIOS", "sub": "Validación de Medio digitales XCENTER/ATOM/RMS", "hp": "", "pais": "VE", "comp": "Virtual Machine", "area": "ADMINSO", "act": "Subir SPI CO", "nodos": ["DLCOP025", "DLCOP026"], "id": "a138"}, {"ph": "INICIO DE SERVICIOS", "sub": "Validación de Medio digitales XCENTER/ATOM/RMS", "hp": "", "pais": "VE", "comp": "Virtual Machine", "area": "ADMINSO", "act": "Subir SPI VE", "nodos": ["DLVEP049", "DLVEP050"], "id": "a139"}, {"ph": "INICIO DE SERVICIOS", "sub": "Validación de Medio digitales XCENTER/ATOM/RMS", "hp": "", "pais": "VE", "comp": "Virtual Machine", "area": "ADMINSO", "act": "Subir SFTP", "nodos": ["ALCOP037", "ALVEP078"], "id": "a140"}, {"ph": "INICIO DE SERVICIOS", "sub": "Validación de Medio digitales XCENTER/ATOM/RMS", "hp": "", "pais": "VE", "comp": "Virtual Machine", "area": "ADMINSO", "act": "Subir OSRM", "nodos": ["ALVEP362", "ALVED368"], "id": "a141"}, {"ph": "INICIO DE SERVICIOS", "sub": "Validación de Medio digitales XCENTER/ATOM/RMS", "hp": "", "pais": "VE", "comp": "Virtual Machine", "area": "ADMINSO", "act": "START GEPE", "nodos": ["ALVEP000"], "id": "a142"}, {"ph": "INICIO DE SERVICIOS", "sub": "Validación de Medio digitales XCENTER/ATOM/RMS", "hp": "", "pais": "VE", "comp": "Weblogic", "area": "MIDDLEWARE", "act": "Start App", "nodos": ["ALVEP000"], "id": "a143"}, {"ph": "INICIO DE SERVICIOS", "sub": "Validación de Medio digitales XCENTER/ATOM/RMS", "hp": "", "pais": "VE", "comp": "Base de Datos", "area": "DBA", "act": "Start BD", "nodos": ["ALVEP000"], "id": "a144"}, {"ph": "INICIO DE SERVICIOS", "sub": "Validación de Medio digitales XCENTER/ATOM/RMS", "hp": "", "pais": "VE", "comp": "Virtual Machine", "area": "ADMINSO", "act": "Subir MAILL3", "nodos": ["ALVEP009"], "id": "a145"}, {"ph": "INICIO DE SERVICIOS", "sub": "Validación de Medio digitales XCENTER/ATOM/RMS", "hp": "", "pais": "VE", "comp": "Virtual Machine", "area": "ADMINSO", "act": "Subir DEV MIDDLEWARE", "nodos": ["ALVEP027"], "id": "a146"}, {"ph": "INICIO DE SERVICIOS", "sub": "Validación de Medio digitales XCENTER/ATOM/RMS", "hp": "", "pais": "VE", "comp": "Virtual Machine", "area": "ADMINSO", "act": "Subir Chat Armirene", "nodos": ["ALVEP079"], "id": "a147"}, {"ph": "INICIO DE SERVICIOS", "sub": "Validación de Medio digitales XCENTER/ATOM/RMS", "hp": "", "pais": "CO", "comp": "Virtual Machine", "area": "ADMINSO", "act": "Subir DIAN Historico", "nodos": ["DLCOP058"], "id": "a148"}, {"ph": "INICIO DE SERVICIOS", "sub": "Validación de Medio digitales XCENTER/ATOM/RMS", "hp": "", "pais": "VE", "comp": "Virtual Machine", "area": "ADMINSO", "act": "Subir IBM Governance - Seguridad", "nodos": ["DLVEP066"], "id": "a149"}, {"ph": "INICIO DE SERVICIOS", "sub": "Validación de Medio digitales XCENTER/ATOM/RMS", "hp": "", "pais": "VE", "comp": "Virtual Machine", "area": "ADMINSO", "act": "Subir FS CO", "nodos": ["FLCOP000"], "id": "a150"}, {"ph": "INICIO DE SERVICIOS", "sub": "Validación de Medio digitales XCENTER/ATOM/RMS", "hp": "", "pais": "VE", "comp": "Virtual Machine", "area": "ADMINSO", "act": "Subir MCP", "nodos": ["HLVEP000"], "id": "a151"}, {"ph": "INICIO DE SERVICIOS", "sub": "Validación de Medio digitales XCENTER/ATOM/RMS", "hp": "", "pais": "VE", "comp": "", "area": "MIDDLEWARE", "act": "Dejar apagado ALVEP054", "nodos": ["ALVEP054"], "id": "a152"}];
+const BASE_ACTS = [{"ph": "ACTIVIDADES PREVIAS", "sub": null, "hp": "", "pais": "VE", "comp": "Virtual Machine", "area": "ADMINSO", "act": "Merchant - Jueves previo", "nodos": [], "id": "a001"}, {"ph": "ACTIVIDADES PREVIAS", "sub": null, "hp": "", "pais": "VE", "comp": "Aplicación", "area": "SOP APP", "act": "Adelantar y finalización de cadena de la XD/ TP/ Assorment", "nodos": [], "id": "a002"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "9:00pm", "pais": "VE", "comp": "Aplicación", "area": "SOP APP", "act": "STOP AGENTES AWA de Venezuela y de Colombia y bajada de aplicación", "nodos": ["ALVEP096", "ALVEP097"], "id": "a003"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Weblogic", "area": "MIDDLEWARE", "act": "STOP RIB", "nodos": [], "id": "a004"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "", "area": "MIDDLEWARE", "act": "Bajar el RIB COMPLETO (SIM/XCENTER/ATOM/BDOS/OID/ODI/FTS/BIP)", "nodos": ["ALVEP056"], "id": "a005"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "", "area": "DBA", "act": "STOP BASE DATOS RIB", "nodos": ["DLVEP040", "DLVEP041"], "id": "a006"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Aplicación", "area": "MIDDLEWARE", "act": "STOP RMS APP", "nodos": ["ALVEP090", "ALVEP091"], "id": "a007"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Aplicación", "area": "MIDDLEWARE", "act": "STOP RPM APP", "nodos": ["ALVEP086", "ALVEP087"], "id": "a008"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Aplicación", "area": "MIDDLEWARE", "act": "STOP RESA APP", "nodos": ["ALVEP090", "ALVEP091"], "id": "a009"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Aplicación", "area": "MIDDLEWARE", "act": "STOP REIM APP", "nodos": ["ALVEP088", "ALVEP089"], "id": "a010"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Aplicación", "area": "MIDDLEWARE", "act": "STOP ALLOC APP", "nodos": ["ALVEP092", "ALVEP093"], "id": "a011"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Base de Datos", "area": "DBA", "act": "STOP BASE DATOS MOM-RMS", "nodos": ["DLVEP064", "DLVEP065"], "id": "a012"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Base de Datos", "area": "DBA", "act": "STOP BASE DATOS AWA", "nodos": ["DLVEP059", "DLVEP060"], "id": "a013"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Weblogic", "area": "MIDDLEWARE", "act": "STOP OBIEE-DWH", "nodos": ["ALVEP070", "ALVEP071", "ALVEP075"], "id": "a014"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Base de Datos", "area": "DBA", "act": "STOP BASE DE DATOS DE OBIEE", "nodos": ["DLVEP045", "DLVEP046"], "id": "a015"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Weblogic", "area": "MIDDLEWARE", "act": "STOP EBS AR", "nodos": ["ALARP000", "ALARP001"], "id": "a016"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "", "area": "DBA", "act": "STOP BASE DATOS EBS AR", "nodos": ["DLARP000", "DLARP001"], "id": "a017"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Weblogic", "area": "MIDDLEWARE", "act": "STOP EBS VE", "nodos": ["ALVEP072", "ALVEP073"], "id": "a018"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "", "area": "DBA", "act": "STOP BASE DATOS EBS VE", "nodos": ["DLVEP073"], "id": "a019"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Weblogic", "area": "MIDDLEWARE", "act": "STOP EBS VE", "nodos": ["ALVEP080", "ALVEP081"], "id": "a020"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "", "area": "DBA", "act": "STOP BASE DATOS EBS VE", "nodos": ["DLVEP080", "DLVEP081"], "id": "a021"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Weblogic", "area": "MIDDLEWARE", "act": "STOP ODI", "nodos": ["ALVEP041", "ALVEP042"], "id": "a022"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Base de Datos", "area": "DBA", "act": "STOP BASE DE DATOS DE ODI", "nodos": ["DLVEP030", "DLVEP031"], "id": "a023"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "CO", "comp": "Weblogic", "area": "MIDDLEWARE", "act": "STOP OBIEE", "nodos": ["ALCOP010", "ALCOP011"], "id": "a024"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "CO", "comp": "Base de Datos", "area": "DBA", "act": "STOP BASE DE DATOS DEOBIEE", "nodos": ["DLCOP004", "DLCOP005"], "id": "a025"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "10:00pm", "pais": "VE", "comp": "Weblogic", "area": "MIDDLEWARE", "act": "STOP FTS - PORTAL DE ITEMS (Validar cambio de Precios)", "nodos": ["ALVEP039", "ALVEP040"], "id": "a026"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Base de Datos", "area": "DBA", "act": "STOP BASE DE DATOS DE FTS", "nodos": ["DLVEP028", "DLVEP029"], "id": "a027"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Weblogic", "area": "MIDDLEWARE", "act": "STOP BDOS", "nodos": ["ALVEP062", "ALVEP066", "ALVEP067", "ALVEP069", "ALVEP063", "ALVEP068"], "id": "a028"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Base de Datos", "area": "DBA", "act": "STOP BASE DE DATOS DE BDOS", "nodos": ["DLVEP025"], "id": "a029"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "10:00pm", "pais": "VE", "comp": "Weblogic", "area": "MIDDLEWARE", "act": "STOP SIM", "nodos": ["ALVEP084", "ALVEP085"], "id": "a030"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Base de Datos", "area": "DBA", "act": "STOP BASE DE DATOS DE SIM", "nodos": ["DLVEP062", "DLVEP063"], "id": "a031"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Weblogic", "area": "MIDDLEWARE", "act": "STOP OID", "nodos": ["ALCOP012", "ALCOP013"], "id": "a032"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Base de Datos", "area": "DBA", "act": "STOP BASE DE DATOS DE OID", "nodos": ["DLCOP006", "DLCOP007"], "id": "a033"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Weblogic", "area": "MIDDLEWARE", "act": "STOP ATOM", "nodos": ["ALVEP043", "ALVEP044"], "id": "a034"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "", "area": "DBA", "act": "STOP BASE DE DATOS DE ATOM", "nodos": ["DLVEP032", "DLVEP033"], "id": "a035"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Weblogic", "area": "MIDDLEWARE", "act": "STOP XCENTER Y DETENER RTLOGS", "nodos": ["ALVEP045", "ALVEP046"], "id": "a036"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Base de Datos", "area": "DBA", "act": "STOP BASE DE DATOS DE xcenter", "nodos": ["DLVEP034", "DLVEP035"], "id": "a037"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Aplicación", "area": "SOP APP", "act": "STOP RECARGAS", "nodos": ["ALVEP017", "ALVEP018"], "id": "a038"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Weblogic", "area": "DBA", "act": "STOP BD RECARGAS", "nodos": ["DLVEP072"], "id": "a039"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Weblogic", "area": "MIDDLEWARE", "act": "STOP BIP", "nodos": ["ALVEP094", "ALVEP095", "ALVEP054"], "id": "a040"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Base de Datos", "area": "DBA", "act": "STOP BASE DE DATOS DE BIP", "nodos": ["DLVEP067", "DLVEP068"], "id": "a041"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Virtual Machine", "area": "ADMINSO", "act": "STOP FILESERVER", "nodos": ["FLVEP001"], "id": "a042"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Virtual Machine", "area": "ADMINSO", "act": "STOP GEPE", "nodos": ["ALVEP000"], "id": "a043"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Weblogic", "area": "MIDDLEWARE", "act": "Stop App", "nodos": ["ALVEP000"], "id": "a044"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Base de Datos", "area": "DBA", "act": "Stop BD", "nodos": ["ALVEP000"], "id": "a045"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Virtual Machine", "area": "ADMINSO", "act": "Apagado de VM en VMware de CIRIION", "nodos": ["FLVEP001"], "id": "a046"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Virtual Machine", "area": "ADMINSO", "act": "Apagado CITIRIX", "nodos": ["HLVEP069"], "id": "a047"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Virtual Machine", "area": "ADMINSO", "act": "Apagado Blanceador CITIRIX", "nodos": ["HLVEP043"], "id": "a048"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Virtual Machine", "area": "ADMINSO", "act": "Apagado Dashboard CISCO", "nodos": ["HLVEP049"], "id": "a049"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Virtual Machine", "area": "ADMINSO", "act": "Apagado BD DOCUSHARE", "nodos": ["DLVEP069"], "id": "a050"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Virtual Machine", "area": "ADMINSO", "act": "Apagado de N8N", "nodos": ["HLVEP063", "HLVEP068", "HLVEP071"], "id": "a051"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Virtual Machine", "area": "ADMINSO", "act": "Apagado Portal Vacaciones", "nodos": ["DLVEP071"], "id": "a052"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Virtual Machine", "area": "ADMINSO", "act": "Apagado SIEM", "nodos": ["HLVEP072"], "id": "a053"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Virtual Machine", "area": "ADMINSO", "act": "Apagado SOMMER", "nodos": ["HLVEP070"], "id": "a054"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Virtual Machine", "area": "ADMINSO", "act": "Apagado SPI CO", "nodos": ["DLCOP025", "DLCOP026"], "id": "a055"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Virtual Machine", "area": "ADMINSO", "act": "Apagado SPI VE", "nodos": ["DLVEP049", "DLVEP050"], "id": "a056"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Virtual Machine", "area": "ADMINSO", "act": "Apagado SFTP", "nodos": ["ALCOP037", "ALVEP078"], "id": "a057"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Virtual Machine", "area": "ADMINSO", "act": "Apagado OSRM", "nodos": ["ALVEP362", "ALVED368"], "id": "a058"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Virtual Machine", "area": "ADMINSO", "act": "Apagado MAILL3", "nodos": ["ALVEP009"], "id": "a059"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Virtual Machine", "area": "ADMINSO", "act": "Apagado DEV MIDDLEWARE", "nodos": ["ALVEP027"], "id": "a060"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Virtual Machine", "area": "ADMINSO", "act": "Apagado Chat Armirene", "nodos": ["ALVEP079"], "id": "a061"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "CO", "comp": "Virtual Machine", "area": "ADMINSO", "act": "Apagado DIAN Historico", "nodos": ["DLCOP058"], "id": "a062"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Virtual Machine", "area": "ADMINSO", "act": "Apagado IBM Governance - Seguridad", "nodos": ["DLVEP066"], "id": "a063"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Virtual Machine", "area": "ADMINSO", "act": "Apagado FS CO", "nodos": ["FLCOP000"], "id": "a064"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Virtual Machine", "area": "ADMINSO", "act": "Apagado MCP", "nodos": ["HLVEP000"], "id": "a065"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Virtual Machine", "area": "ADMINSO", "act": "Apache FTS", "nodos": ["WLVEP002", "WLVEP003"], "id": "a066"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Virtual Machine", "area": "ADMINSO", "act": "Apache BDOS", "nodos": ["WLVEP004", "WLVEP005"], "id": "a067"}, {"ph": "BAJADA DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Virtual Machine", "area": "ADMINSO", "act": "Apache Lectoras de precio PAC", "nodos": ["WLVEP010"], "id": "a068"}, {"ph": "INICIO DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Weblogic", "area": "MIDDLEWARE", "act": "START FILESERVER", "nodos": ["FLVEP001"], "id": "a069"}, {"ph": "INICIO DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Servicio", "area": "SOP APP", "act": "START AWA", "nodos": [], "id": "a070"}, {"ph": "INICIO DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Weblogic", "area": "DBA", "act": "Subir base Datos", "nodos": ["DLVEP059", "DLVEP060"], "id": "a071"}, {"ph": "INICIO DE SERVICIOS", "sub": null, "hp": "", "pais": "VE", "comp": "Weblogic", "area": "MIDDLEWARE", "act": "Subir app", "nodos": ["ALVEP096", "ALVEP097"], "id": "a072"}, {"ph": "INICIO DE SERVICIOS", "sub": "START OID", "hp": "", "pais": "VE", "comp": "Base de Datos", "area": "DBA", "act": "Subir base Datos", "nodos": ["DLCOP006", "DLCOP007"], "id": "a073"}, {"ph": "INICIO DE SERVICIOS", "sub": "START OID", "hp": "", "pais": "VE", "comp": "Weblogic", "area": "MIDDLEWARE", "act": "Subir app", "nodos": ["ALCOP012", "ALCOP013"], "id": "a074"}, {"ph": "INICIO DE SERVICIOS", "sub": "START OID", "hp": "", "pais": "VE", "comp": "Aplicación", "area": "SOP APP", "act": "Subir solo los Agente de AWA de Colombia Para iniciar la cadena En Colombia", "nodos": [], "id": "a075"}, {"ph": "INICIO DE SERVICIOS", "sub": "START XCENTER VE", "hp": "", "pais": "VE", "comp": "Weblogic", "area": "DBA", "act": "Subir base Datos", "nodos": ["DLVEP034", "DLVEP035"], "id": "a076"}, {"ph": "INICIO DE SERVICIOS", "sub": "START XCENTER VE", "hp": "", "pais": "VE", "comp": "Weblogic", "area": "MIDDLEWARE", "act": "Subir app", "nodos": ["ALVEP045", "ALVEP046"], "id": "a077"}, {"ph": "INICIO DE SERVICIOS", "sub": "START ATOM", "hp": "", "pais": "VE", "comp": "Weblogic", "area": "MIDDLEWARE", "act": "Subir el Weblogic", "nodos": ["ALVEP043", "ALVEP044"], "id": "a078"}, {"ph": "INICIO DE SERVICIOS", "sub": "START ATOM", "hp": "", "pais": "VE", "comp": "Servicio", "area": "SOP APP", "act": "Verificacion de servicios ATOM", "nodos": [], "id": "a079"}, {"ph": "INICIO DE SERVICIOS", "sub": "START SIM", "hp": "", "pais": "VE", "comp": "Servicio", "area": "DBA", "act": "Subir cluster y base de datos SIMVE y realizar validación detallada de los servicios de BD.", "nodos": ["DLVEP062", "DLVEP063"], "id": "a080"}, {"ph": "INICIO DE SERVICIOS", "sub": "START SIM", "hp": "", "pais": "VE", "comp": "Servicio", "area": "MIDDLEWARE", "act": "Subir el Weblogic/voice link", "nodos": ["ALVEP084", "ALVEP085"], "id": "a081"}, {"ph": "INICIO DE SERVICIOS", "sub": "START SIM", "hp": "", "pais": "VE", "comp": "Aplicación", "area": "SOP APP", "act": "START RECARGAS", "nodos": [], "id": "a082"}, {"ph": "INICIO DE SERVICIOS", "sub": "START SIM", "hp": "", "pais": "VE", "comp": "Weblogic", "area": "DBA", "act": "Subir base Datos", "nodos": ["DLVEP072"], "id": "a083"}, {"ph": "INICIO DE SERVICIOS", "sub": "START SIM", "hp": "", "pais": "VE", "comp": "Weblogic", "area": "MIDDLEWARE", "act": "Subir app", "nodos": ["ALVEP017", "ALVEP018"], "id": "a084"}, {"ph": "INICIO DE SERVICIOS", "sub": "START BDOS", "hp": "", "pais": "VE", "comp": "Base de Datos", "area": "DBA", "act": "Subir base Datos", "nodos": ["DLVEP025"], "id": "a085"}, {"ph": "INICIO DE SERVICIOS", "sub": "START BDOS", "hp": "", "pais": "VE", "comp": "Virtual Machine", "area": "ADMINSO", "act": "Apache BDOS", "nodos": ["WLVEP004", "WLVEP005"], "id": "a086"}, {"ph": "INICIO DE SERVICIOS", "sub": "START BDOS", "hp": "", "pais": "VE", "comp": "Weblogic", "area": "MIDDLEWARE", "act": "Subir app", "nodos": ["ALVEP062", "ALVEP066", "ALVEP067", "ALVEP069", "ALVEP063", "DLVEP026", "ALVEP068", "DLVEP027"], "id": "a087"}, {"ph": "INICIO DE SERVICIOS", "sub": "START BDOS", "hp": "", "pais": "VE", "comp": "Virtual Machine", "area": "ADMINSO", "act": "Apache Lectoras de precio PAC", "nodos": ["WLVEP010"], "id": "a088"}, {"ph": "INICIO DE SERVICIOS", "sub": "START BDOS", "hp": "", "pais": "VE", "comp": "Servicio", "area": "SOP APP", "act": "Verificacion de servicios", "nodos": [], "id": "a089"}, {"ph": "INICIO DE SERVICIOS", "sub": "START FTS - PORTAL ITEM", "hp": "", "pais": "VE", "comp": "Base de Datos", "area": "DBA", "act": "Subir cluster y base de datos FTSVE y realizar validación detallada de los servicios de BD.", "nodos": ["DLVEP028", "DLVEP029"], "id": "a090"}, {"ph": "INICIO DE SERVICIOS", "sub": "START FTS - PORTAL ITEM", "hp": "", "pais": "VE", "comp": "Virtual Machine", "area": "ADMINSO", "act": "Apache FTS", "nodos": ["WLVEP002", "WLVEP003"], "id": "a091"}, {"ph": "INICIO DE SERVICIOS", "sub": "START FTS - PORTAL ITEM", "hp": "", "pais": "VE", "comp": "Weblogic", "area": "MIDDLEWARE", "act": "Subir el Weblogic", "nodos": ["ALVEP039", "ALVEP040"], "id": "a092"}, {"ph": "INICIO DE SERVICIOS", "sub": "START FTS - PORTAL ITEM", "hp": "", "pais": "VE", "comp": "Servicio", "area": "SOP APP", "act": "Verificacion de servicios FTS", "nodos": [], "id": "a093"}, {"ph": "INICIO DE SERVICIOS", "sub": "START ODI", "hp": "", "pais": "VE", "comp": "Base de Datos", "area": "DBA", "act": "Subir base Datos", "nodos": ["DLVEP030", "DLVEP031"], "id": "a094"}, {"ph": "INICIO DE SERVICIOS", "sub": "START ODI", "hp": "", "pais": "VE", "comp": "Weblogic", "area": "MIDDLEWARE", "act": "Subir app", "nodos": ["ALVEP041", "ALVEP042"], "id": "a095"}, {"ph": "INICIO DE SERVICIOS", "sub": "START ODI", "hp": "", "pais": "VE", "comp": "Servicio", "area": "SOP APP", "act": "Verificacion de servicios", "nodos": [], "id": "a096"}, {"ph": "INICIO DE SERVICIOS", "sub": "START MOM", "hp": "", "pais": "VE", "comp": "Base de Datos", "area": "DBA", "act": "Subir cluster y base de datos MOMVE y realizar validación detallada de los servicios de BD.", "nodos": ["DLVEP064", "DLVEP065"], "id": "a097"}, {"ph": "INICIO DE SERVICIOS", "sub": "START MOM", "hp": "", "pais": "VE", "comp": "Base de Datos", "area": "DBA", "act": "Verificar ultimos registros en DB - SOP APP", "nodos": ["DLVEP064", "DLVEP065"], "id": "a098"}, {"ph": "INICIO DE SERVICIOS", "sub": "START MOM", "hp": "", "pais": "VE", "comp": "Weblogic", "area": "MIDDLEWARE", "act": "START RPM APP", "nodos": ["ALVEP086", "ALVEP087"], "id": "a099"}, {"ph": "INICIO DE SERVICIOS", "sub": "START MOM", "hp": "", "pais": "VE", "comp": "Weblogic", "area": "MIDDLEWARE", "act": "START REIM APP", "nodos": ["ALVEP088", "ALVEP089"], "id": "a100"}, {"ph": "INICIO DE SERVICIOS", "sub": "START MOM", "hp": "", "pais": "VE", "comp": "Weblogic", "area": "MIDDLEWARE", "act": "START RMS APP", "nodos": ["ALVEP090", "ALVEP091"], "id": "a101"}, {"ph": "INICIO DE SERVICIOS", "sub": "START MOM", "hp": "", "pais": "VE", "comp": "Weblogic", "area": "MIDDLEWARE", "act": "SART RESA APP", "nodos": ["ALVEP090", "ALVEP091"], "id": "a102"}, {"ph": "INICIO DE SERVICIOS", "sub": "START MOM", "hp": "", "pais": "VE", "comp": "Weblogic", "area": "MIDDLEWARE", "act": "START ALLOC APP", "nodos": ["ALVEP092", "ALVEP093"], "id": "a103"}, {"ph": "INICIO DE SERVICIOS", "sub": "START MOM", "hp": "", "pais": "VE", "comp": "Weblogic", "area": "MIDDLEWARE", "act": "START RIB RMS", "nodos": ["ALVEP056"], "id": "a104"}, {"ph": "INICIO DE SERVICIOS", "sub": "START BIP", "hp": "", "pais": "VE", "comp": "Base de Datos", "area": "DBA", "act": "Subir base Datos", "nodos": ["DLVEP067", "DLVEP068"], "id": "a105"}, {"ph": "INICIO DE SERVICIOS", "sub": "START BIP", "hp": "", "pais": "VE", "comp": "Weblogic", "area": "MIDDLEWARE", "act": "Subir app", "nodos": ["ALVEP094", "ALVEP095"], "id": "a106"}, {"ph": "INICIO DE SERVICIOS", "sub": "START BIP", "hp": "", "pais": "VE", "comp": "Servicio", "area": "SOP APP", "act": "Verificacion de servicios", "nodos": [], "id": "a107"}, {"ph": "INICIO DE SERVICIOS", "sub": "START BIP", "hp": "", "pais": "VE", "comp": "Servicio", "area": "MIDDLEWARE", "act": "START RIB COMPLETO", "nodos": [], "id": "a108"}, {"ph": "INICIO DE SERVICIOS", "sub": "START BIP", "hp": "", "pais": "VE", "comp": "Base de Datos", "area": "DBA", "act": "Subir base Datos", "nodos": ["DLVEP040", "DLVEP041"], "id": "a109"}, {"ph": "INICIO DE SERVICIOS", "sub": "START BIP", "hp": "", "pais": "VE", "comp": "Weblogic", "area": "MIDDLEWARE", "act": "Subir app", "nodos": ["ALVEP056"], "id": "a110"}, {"ph": "INICIO DE SERVICIOS", "sub": "START BIP", "hp": "", "pais": "VE", "comp": "Servicio", "area": "MIDDLEWARE", "act": "START AGENTES DE AWA DE VENEZUELA", "nodos": [], "id": "a111"}, {"ph": "INICIO DE SERVICIOS", "sub": "START BIP", "hp": "", "pais": "AR", "comp": "Weblogic", "area": "MIDDLEWARE", "act": "START EBS AR", "nodos": [], "id": "a112"}, {"ph": "INICIO DE SERVICIOS", "sub": "START BIP", "hp": "", "pais": "AR", "comp": "Base de Datos", "area": "DBA", "act": "Subir BD", "nodos": ["DLARP000", "DLARP001"], "id": "a113"}, {"ph": "INICIO DE SERVICIOS", "sub": "START BIP", "hp": "", "pais": "AR", "comp": "Weblogic", "area": "MIDDLEWARE", "act": "Subir App", "nodos": ["ALARP000", "ALARP001"], "id": "a114"}, {"ph": "INICIO DE SERVICIOS", "sub": "START BIP", "hp": "", "pais": "VE", "comp": "Weblogic", "area": "MIDDLEWARE", "act": "START EBS VE", "nodos": [], "id": "a115"}, {"ph": "INICIO DE SERVICIOS", "sub": "START BIP", "hp": "", "pais": "VE", "comp": "Base de Datos", "area": "DBA", "act": "Subir BD", "nodos": ["DLVEPO073"], "id": "a116"}, {"ph": "INICIO DE SERVICIOS", "sub": "START BIP", "hp": "", "pais": "VE", "comp": "Weblogic", "area": "MIDDLEWARE", "act": "Subir App", "nodos": ["ALVEP072", "ALVEP073"], "id": "a117"}, {"ph": "INICIO DE SERVICIOS", "sub": "START BIP", "hp": "", "pais": "VE", "comp": "Weblogic", "area": "MIDDLEWARE", "act": "START EBS VE", "nodos": [], "id": "a118"}, {"ph": "INICIO DE SERVICIOS", "sub": "START BIP", "hp": "", "pais": "VE", "comp": "Base de Datos", "area": "DBA", "act": "Subir BD", "nodos": ["DLVEP080", "DLVEP081"], "id": "a119"}, {"ph": "INICIO DE SERVICIOS", "sub": "START BIP", "hp": "", "pais": "VE", "comp": "Weblogic", "area": "MIDDLEWARE", "act": "Subir App", "nodos": ["ALVEP080", "ALVEP081"], "id": "a120"}, {"ph": "INICIO DE SERVICIOS", "sub": "START BIP", "hp": "", "pais": "VE", "comp": "Aplicación", "area": "MIDDLEWARE", "act": "START OBIEE - DWH", "nodos": [], "id": "a121"}, {"ph": "INICIO DE SERVICIOS", "sub": "START BIP", "hp": "", "pais": "VE", "comp": "Base de Datos", "area": "DBA", "act": "Subir BD", "nodos": ["DLVEP045", "DLVEP046"], "id": "a122"}, {"ph": "INICIO DE SERVICIOS", "sub": "START BIP", "hp": "", "pais": "VE", "comp": "Weblogic", "area": "MIDDLEWARE", "act": "Subir App", "nodos": ["ALVEP070", "ALVEP071", "ALVEP075"], "id": "a123"}, {"ph": "INICIO DE SERVICIOS", "sub": "START BIP", "hp": "", "pais": "CO", "comp": "Aplicación", "area": "MIDDLEWARE", "act": "START OBIEE", "nodos": [], "id": "a124"}, {"ph": "INICIO DE SERVICIOS", "sub": "START BIP", "hp": "", "pais": "CO", "comp": "Base de Datos", "area": "DBA", "act": "Subir BD", "nodos": ["DLCOP004", "DLCOP005"], "id": "a125"}, {"ph": "INICIO DE SERVICIOS", "sub": "START BIP", "hp": "", "pais": "CO", "comp": "Weblogic", "area": "MIDDLEWARE", "act": "Dejar apagadas por indicaciones de GI", "nodos": ["ALCOP010", "ALCOP011"], "id": "a126"}, {"ph": "INICIO DE SERVICIOS", "sub": "Prebas de APP", "hp": "", "pais": "VE", "comp": "Servicio", "area": "SOP APP", "act": "Pruebas de procesos SLIM4", "nodos": [], "id": "a127"}, {"ph": "INICIO DE SERVICIOS", "sub": "Prebas de APP", "hp": "", "pais": "VE", "comp": "Servicio", "area": "SOP APP", "act": "FTD EDI RMS", "nodos": [], "id": "a128"}, {"ph": "INICIO DE SERVICIOS", "sub": "Prebas de APP", "hp": "", "pais": "VE", "comp": "Servicio", "area": "SOP APP", "act": "Inicio de la cadena Colombia y Venezuela", "nodos": [], "id": "a129"}, {"ph": "INICIO DE SERVICIOS", "sub": "Validación de Medio digitales XCENTER/ATOM/RMS", "hp": "", "pais": "VE", "comp": "Virtual Machine", "area": "ADMINSO", "act": "Subir CITIRIX", "nodos": ["HLVEP069"], "id": "a130"}, {"ph": "INICIO DE SERVICIOS", "sub": "Validación de Medio digitales XCENTER/ATOM/RMS", "hp": "", "pais": "VE", "comp": "Virtual Machine", "area": "ADMINSO", "act": "Subir Blanceador CITIRIX", "nodos": ["HLVEP043"], "id": "a131"}, {"ph": "INICIO DE SERVICIOS", "sub": "Validación de Medio digitales XCENTER/ATOM/RMS", "hp": "", "pais": "VE", "comp": "Virtual Machine", "area": "ADMINSO", "act": "Subir Dashboard CISCO", "nodos": ["HLVEP049"], "id": "a132"}, {"ph": "INICIO DE SERVICIOS", "sub": "Validación de Medio digitales XCENTER/ATOM/RMS", "hp": "", "pais": "VE", "comp": "Virtual Machine", "area": "ADMINSO", "act": "Subir BD DOCUSHARE", "nodos": ["DLVEP069"], "id": "a133"}, {"ph": "INICIO DE SERVICIOS", "sub": "Validación de Medio digitales XCENTER/ATOM/RMS", "hp": "", "pais": "VE", "comp": "Virtual Machine", "area": "ADMINSO", "act": "Subir de N8N", "nodos": ["HLVEP063", "HLVEP068", "HLVEP071"], "id": "a134"}, {"ph": "INICIO DE SERVICIOS", "sub": "Validación de Medio digitales XCENTER/ATOM/RMS", "hp": "", "pais": "VE", "comp": "Virtual Machine", "area": "ADMINSO", "act": "Subir Portal Vacaciones", "nodos": ["DLVEP071"], "id": "a135"}, {"ph": "INICIO DE SERVICIOS", "sub": "Validación de Medio digitales XCENTER/ATOM/RMS", "hp": "", "pais": "VE", "comp": "Virtual Machine", "area": "ADMINSO", "act": "Subir SIEM", "nodos": ["HLVEP072"], "id": "a136"}, {"ph": "INICIO DE SERVICIOS", "sub": "Validación de Medio digitales XCENTER/ATOM/RMS", "hp": "", "pais": "VE", "comp": "Virtual Machine", "area": "ADMINSO", "act": "Subir SOMMER", "nodos": ["HLVEP070"], "id": "a137"}, {"ph": "INICIO DE SERVICIOS", "sub": "Validación de Medio digitales XCENTER/ATOM/RMS", "hp": "", "pais": "VE", "comp": "Virtual Machine", "area": "ADMINSO", "act": "Subir SPI CO", "nodos": ["DLCOP025", "DLCOP026"], "id": "a138"}, {"ph": "INICIO DE SERVICIOS", "sub": "Validación de Medio digitales XCENTER/ATOM/RMS", "hp": "", "pais": "VE", "comp": "Virtual Machine", "area": "ADMINSO", "act": "Subir SPI VE", "nodos": ["DLVEP049", "DLVEP050"], "id": "a139"}, {"ph": "INICIO DE SERVICIOS", "sub": "Validación de Medio digitales XCENTER/ATOM/RMS", "hp": "", "pais": "VE", "comp": "Virtual Machine", "area": "ADMINSO", "act": "Subir SFTP", "nodos": ["ALCOP037", "ALVEP078"], "id": "a140"}, {"ph": "INICIO DE SERVICIOS", "sub": "Validación de Medio digitales XCENTER/ATOM/RMS", "hp": "", "pais": "VE", "comp": "Virtual Machine", "area": "ADMINSO", "act": "Subir OSRM", "nodos": ["ALVEP362", "ALVED368"], "id": "a141"}, {"ph": "INICIO DE SERVICIOS", "sub": "Validación de Medio digitales XCENTER/ATOM/RMS", "hp": "", "pais": "VE", "comp": "Virtual Machine", "area": "ADMINSO", "act": "START GEPE", "nodos": ["ALVEP000"], "id": "a142"}, {"ph": "INICIO DE SERVICIOS", "sub": "Validación de Medio digitales XCENTER/ATOM/RMS", "hp": "", "pais": "VE", "comp": "Weblogic", "area": "MIDDLEWARE", "act": "Start App", "nodos": ["ALVEP000"], "id": "a143"}, {"ph": "INICIO DE SERVICIOS", "sub": "Validación de Medio digitales XCENTER/ATOM/RMS", "hp": "", "pais": "VE", "comp": "Base de Datos", "area": "DBA", "act": "Start BD", "nodos": ["ALVEP000"], "id": "a144"}, {"ph": "INICIO DE SERVICIOS", "sub": "Validación de Medio digitales XCENTER/ATOM/RMS", "hp": "", "pais": "VE", "comp": "Virtual Machine", "area": "ADMINSO", "act": "Subir MAILL3", "nodos": ["ALVEP009"], "id": "a145"}, {"ph": "INICIO DE SERVICIOS", "sub": "Validación de Medio digitales XCENTER/ATOM/RMS", "hp": "", "pais": "VE", "comp": "Virtual Machine", "area": "ADMINSO", "act": "Subir DEV MIDDLEWARE", "nodos": ["ALVEP027"], "id": "a146"}, {"ph": "INICIO DE SERVICIOS", "sub": "Validación de Medio digitales XCENTER/ATOM/RMS", "hp": "", "pais": "VE", "comp": "Virtual Machine", "area": "ADMINSO", "act": "Subir Chat Armirene", "nodos": ["ALVEP079"], "id": "a147"}, {"ph": "INICIO DE SERVICIOS", "sub": "Validación de Medio digitales XCENTER/ATOM/RMS", "hp": "", "pais": "CO", "comp": "Virtual Machine", "area": "ADMINSO", "act": "Subir DIAN Historico", "nodos": ["DLCOP058"], "id": "a148"}, {"ph": "INICIO DE SERVICIOS", "sub": "Validación de Medio digitales XCENTER/ATOM/RMS", "hp": "", "pais": "VE", "comp": "Virtual Machine", "area": "ADMINSO", "act": "Subir IBM Governance - Seguridad", "nodos": ["DLVEP066"], "id": "a149"}, {"ph": "INICIO DE SERVICIOS", "sub": "Validación de Medio digitales XCENTER/ATOM/RMS", "hp": "", "pais": "VE", "comp": "Virtual Machine", "area": "ADMINSO", "act": "Subir FS CO", "nodos": ["FLCOP000"], "id": "a150"}, {"ph": "INICIO DE SERVICIOS", "sub": "Validación de Medio digitales XCENTER/ATOM/RMS", "hp": "", "pais": "VE", "comp": "Virtual Machine", "area": "ADMINSO", "act": "Subir MCP", "nodos": ["HLVEP000"], "id": "a151"}, {"ph": "INICIO DE SERVICIOS", "sub": "Validación de Medio digitales XCENTER/ATOM/RMS", "hp": "", "pais": "VE", "comp": "", "area": "MIDDLEWARE", "act": "Dejar apagado ALVEP054", "nodos": ["ALVEP054"], "id": "a152"}];
 const AREAS = {
   "MIDDLEWARE":{label:"Middleware",c:"var(--a-mw)"},
   "DBA":{label:"DBA",c:"var(--a-dba)"},
   "SOP APP":{label:"Soporte App",c:"var(--a-app)"},
   "ADMINSO":{label:"Admin SO",c:"var(--a-so)"}
 };
-const PHASE_ORDER = [...new Set(ACTS.map(a=>a.ph))];
-const LS_KEY = "cirion-ve-tiempos-v1";
+const PHASE_ORDER = [...new Set(BASE_ACTS.map(a=>a.ph))];
+const LS_KEY = "cirion-ve-tiempos-v1", LS_ACTS = LS_KEY+"-actividades", LS_HP = LS_KEY+"-hora", LS_MODS = LS_KEY+"-cambios";
+
+/* Actividades agregadas por el usuario (id -> definición). Cada una se inserta
+   después de la última actividad base de su misma fase y grupo. */
+let custom = {};
+let ACTS = BASE_ACTS.slice();
+const BASE_BY_ID = Object.fromEntries(BASE_ACTS.map(a=>[a.id,a]));
+/* Cambios a las actividades del plan (id -> {act, area, comp, pais, nodos}). */
+let mods = {};
+const MOD_FIELDS = ["act","area","comp","pais","nodos"];
+function sameAsBase(id, m){ const b=BASE_BY_ID[id]; return MOD_FIELDS.every(k=>String(m[k])===String(b[k])); }
+function setMods(obj){ mods=obj; setCustom(custom); }
+/* Hora plan ajustada de las actividades base (id -> "9:30pm"; "" = sin hora).
+   En las agregadas la hora vive en su propia definición. */
+let hpOver = {};
+function hpOf(a){ return !custom[a.id] && a.id in hpOver ? hpOver[a.id] : (a.hp||""); }
+function hpToInput(h){
+  const m=(h||"").trim().match(/^(\d{1,2})(?::(\d{2}))?\s*(?:([ap])\.?\s*m?\.?)?$/i);
+  if(!m) return "";
+  let H=+m[1]; const M=+(m[2]||0), ap=(m[3]||"").toLowerCase();
+  if(ap==="p" && H<12) H+=12; if(ap==="a" && H===12) H=0;
+  return H<24 && M<60 ? pad(H)+":"+pad(M) : "";
+}
+function hpFromInput(v){
+  if(!v) return "";
+  const [H,M]=v.split(":").map(Number);
+  return ((H%12)||12)+":"+pad(M)+(H<12?"am":"pm");
+}
+function setCustom(obj){
+  custom = obj;
+  const key=a=>a.ph+"\u0000"+(a.sub||""), last={}, lastPh={}, at={};
+  BASE_ACTS.forEach((a,i)=>{ last[key(a)]=i; lastPh[a.ph]=i; });
+  for(const c of Object.values(custom).sort((a,b)=>a.id<b.id?-1:1)){
+    const i = key(c) in last ? last[key(c)] : c.ph in lastPh ? lastPh[c.ph] : BASE_ACTS.length-1;
+    (at[i]=at[i]||[]).push(c);
+  }
+  ACTS=[]; BASE_ACTS.forEach((a,i)=>{ ACTS.push(mods[a.id]?{...a,...mods[a.id]}:a); if(at[i]) ACTS.push(...at[i]); });
+}
+function areaKey(v){
+  v=(v||"").trim().toLowerCase();
+  return Object.keys(AREAS).find(k=>k.toLowerCase()===v || AREAS[k].label.toLowerCase()===v) || null;
+}
+function splitNodos(s){ return (s||"").split(/[,;\s]+/).map(x=>x.trim()).filter(Boolean); }
 
 let times = {};           // id -> {inicio:ms, fin:ms}
 let mode = "pending";     // pending | shared | local
-let db = null, coll = null;
+let db = null, coll = null, acoll = null, hcoll = null, mcoll = null;
 let fStatus = "all", fArea = null, fQuery = "";
 const closed = new Set();
 const busy = new Set();
@@ -234,10 +359,153 @@ function toast(msg){ const t=$("#toast"); t.textContent=msg; t.classList.add("sh
 function status(id){ const t=times[id]; if(!t||!t.inicio) return "pend"; if(!t.fin) return "run"; return "done"; }
 function dur(id, now){ const t=times[id]; if(!t||!t.inicio) return null; return (t.fin||now)-t.inicio; }
 const OVER = 60*60*1000;
+/* Orden de finalización: se calcula por la hora de fin (empate: inicio, luego orden del plan). */
+function doneInOrder(){
+  const idx=new Map(ACTS.map((a,i)=>[a.id,i]));
+  return ACTS.filter(a=>times[a.id] && times[a.id].inicio && times[a.id].fin)
+    .sort((a,b)=>times[a.id].fin-times[b.id].fin || times[a.id].inicio-times[b.id].inicio || idx.get(a.id)-idx.get(b.id));
+}
+function finOrder(){ return new Map(doneInOrder().map((a,i)=>[a.id,i+1])); }
 
 /* ---------- persistence ---------- */
-function loadLocal(){ try{ const r=localStorage.getItem(LS_KEY); times=r?JSON.parse(r):{}; }catch(e){ times={}; } }
-function saveLocal(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(times)); }catch(e){} }
+function loadLocal(){
+  try{ const r=localStorage.getItem(LS_KEY); times=r?JSON.parse(r):{}; }catch(e){ times={}; }
+  try{ const r=localStorage.getItem(LS_ACTS); setCustom(r?JSON.parse(r):{}); }catch(e){ setCustom({}); }
+  try{ const r=localStorage.getItem(LS_HP); hpOver=r?JSON.parse(r):{}; }catch(e){ hpOver={}; }
+  try{ const r=localStorage.getItem(LS_MODS); setMods(r?JSON.parse(r):{}); }catch(e){ setMods({}); }
+}
+function saveLocal(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(times)); localStorage.setItem(LS_ACTS, JSON.stringify(custom)); localStorage.setItem(LS_HP, JSON.stringify(hpOver)); localStorage.setItem(LS_MODS, JSON.stringify(mods)); }catch(e){} }
+
+/* ---------- archivo .txt como base de datos simple ----------
+   Actividades agregadas: +ID | FASE | GRUPO | ÁREA | COMPONENTE | PAÍS | NODOS | HORA PLAN | ACTIVIDAD
+   Tiempos, una línea por actividad: ID | INICIO | FIN | DURACIÓN | ÁREA | ACTIVIDAD
+   (de los tiempos solo se leen ID, INICIO y FIN). El archivo se puede editar
+   a mano: la página detecta el cambio y lo recarga. Lo sirve server.py. */
+const API = "api/registros";
+const BASE_IDS = new Set(BASE_ACTS.map(a=>a.id));
+let fileMod = "", fileBusy = false;
+
+function parseDT(s){
+  s=(s||"").trim(); if(!s) return null;
+  const m=s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})[ T](\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+  return m ? new Date(+m[1],m[2]-1,+m[3],+m[4],+m[5],+(m[6]||0)).getTime() : NaN;
+}
+function buildTXT(){
+  const now=Date.now(), col=s=>(s||"").padEnd(19), done=doneInOrder();
+  const lines=[
+    "# REGISTROS DE TIEMPOS · Migración Storage Pure Cirion VE",
+    "# Este archivo es la base de datos de la página y se puede editar a mano.",
+    "# Las líneas que empiezan con # se ignoran.",
+    "# Guardado: "+fmtDT(now),
+    "",
+    "# ---- ORDEN DE FINALIZACIÓN ----",
+    "#   =N° | FIN | ID | DURACIÓN | FASE | ACTIVIDAD",
+    "#   - Informativo: se recalcula en cada guardado a partir de la hora de FIN (no se lee)",
+    ...(done.length ? done.map((a,i)=>{ const t=times[a.id];
+      return ["="+String(i+1).padStart(3), fmtDT(t.fin), a.id.padEnd(4), fmtDur(t.fin-t.inicio), a.ph.padEnd(19), a.act].join(" | "); })
+      : ["#   (todavía no hay actividades finalizadas)"]),
+    "",
+    "# ---- ACTIVIDADES AGREGADAS ----",
+    "#   +ID | FASE | GRUPO | ÁREA | COMPONENTE | PAÍS | NODOS | HORA PLAN | ACTIVIDAD",
+    "#   - ID: único, sin espacios (ej.: n1). FASE: "+PHASE_ORDER.join(" / "),
+    "#   - ÁREA: "+Object.values(AREAS).map(a=>a.label).join(" / ")+" · GRUPO, COMPONENTE, NODOS y HORA PLAN pueden ir vacíos",
+    ...Object.values(custom).sort((a,b)=>a.id<b.id?-1:1).map(c=>["+"+c.id, c.ph, c.sub||"", (AREAS[c.area]||{}).label||c.area,
+      c.comp, c.pais, c.nodos.join(", "), c.hp, c.act].join(" | ")),
+    "",
+    "# ---- ACTIVIDADES DEL PLAN MODIFICADAS ----",
+    "#   *ID | ÁREA | COMPONENTE | PAÍS | NODOS | ACTIVIDAD",
+    "#   - Reemplaza esos datos de la actividad del plan con ese ID; borra la línea para volver al original",
+    ...BASE_ACTS.filter(a=>mods[a.id]).map(a=>{ const m=mods[a.id];
+      return ["*"+a.id, (AREAS[m.area]||{}).label||m.area, m.comp, m.pais, m.nodos.join(", "), m.act].join(" | "); }),
+    "",
+    "# ---- TIEMPOS ----",
+    "#   ID | INICIO | FIN | ORDEN | HORA PLAN | DURACIÓN | ÁREA | ACTIVIDAD",
+    "#   - Fechas en hora local con formato AAAA-MM-DD HH:MM:SS",
+    "#   - INICIO vacío = pendiente · FIN vacío = en curso",
+    "#   - HORA PLAN: hora planificada (ej.: 9:00pm, 21:00); vacía = sin hora",
+    "#   - ORDEN: posición en que se finalizó la actividad (1 = la primera); se calcula por la hora de FIN",
+    "#   - Solo se leen ID, INICIO, FIN y HORA PLAN; ORDEN, DURACIÓN, ÁREA y ACTIVIDAD son informativos",
+    ""
+  ];
+  const ord=new Map(done.map((a,i)=>[a.id,i+1]));
+  for(const a of ACTS){
+    const t=times[a.id]||{}, d=dur(a.id,now);
+    lines.push([a.id, col(fmtDT(t.inicio)), col(fmtDT(t.fin)), String(ord.get(a.id)||"").padStart(5), hpOf(a).padEnd(9), (d==null?"":fmtDur(d)).padEnd(8),
+      ((AREAS[a.area]||{}).label||a.area).padEnd(11), a.act+(a.nodos.length?" ("+a.nodos.join(", ")+")":"")].join(" | "));
+  }
+  return lines.join("\r\n")+"\r\n";
+}
+function parseTXT(txt){
+  const out={}, acts={}, hp={}, md={}, bad=[];
+  const lines=txt.replace(/^﻿/,"").split(/\r?\n/).map(l=>l.trim());
+  lines.forEach((l,i)=>{
+    if(l[0]!=="+") return;
+    const p=l.slice(1).split("|").map(s=>s.trim());
+    const id=p[0], ph=PHASE_ORDER.find(x=>x.toLowerCase()===(p[1]||"").toLowerCase()), area=areaKey(p[3]), act=p.slice(8).join("|").trim();
+    if(!/^\S+$/.test(id||"") || BASE_IDS.has(id) || acts[id] || !ph || !area || !act){ bad.push(i+1); return; }
+    acts[id]={id, ph, sub:p[2]||null, area, comp:p[4]||"", pais:(p[5]||"VE").toUpperCase(), nodos:splitNodos(p[6]), hp:p[7]||"", act};
+  });
+  lines.forEach((l,i)=>{
+    if(l[0]!=="*") return;
+    const p=l.slice(1).split("|").map(s=>s.trim());
+    const id=p[0], area=areaKey(p[1]), act=p.slice(5).join("|").trim();
+    if(!BASE_IDS.has(id) || md[id] || !area || !act){ bad.push(i+1); return; }
+    const m={act, area, comp:p[2]||"", pais:(p[3]||"VE").toUpperCase(), nodos:splitNodos(p[4])};
+    if(!sameAsBase(id,m)) md[id]=m;
+  });
+  lines.forEach((l,i)=>{
+    if(!l||l[0]==="#"||l[0]==="+"||l[0]==="*"||l[0]==="=") return;
+    const p=l.split("|").map(s=>s.trim()), [id,ini,fin]=p;
+    if(!BASE_IDS.has(id) && !acts[id]){ bad.push(i+1); return; }
+    if(p.length>=7){   // 8 columnas: con ORDEN y HORA PLAN · 7: solo HORA PLAN · 6: formato inicial
+      const h=p[p.length>=8?4:3], base=BASE_ACTS.find(a=>a.id===id);
+      if(h && !hpToInput(h)){ bad.push(i+1); return; }
+      if(acts[id]) acts[id].hp=h;
+      else if(h!==(base.hp||"")) hp[id]=h;
+    }
+    const i0=parseDT(ini), f0=parseDT(fin);
+    if(i0==null){ if(f0!=null) bad.push(i+1); return; }
+    if(isNaN(i0) || (f0!=null && (isNaN(f0) || f0<i0))){ bad.push(i+1); return; }
+    out[id]={inicio:i0,fin:f0};
+  });
+  bad.sort((a,b)=>a-b);
+  return {out,acts,hp,mods:md,bad,rows:lines.some(l=>l && l[0]!=="#")};
+}
+async function readFile(){
+  const r=await fetch(API,{cache:"no-store"});
+  if(!r.ok) throw new Error("HTTP "+r.status);
+  fileMod=r.headers.get("X-Mtime")||"";
+  const p=parseTXT(await r.text());
+  if(p.bad.length) toast(`Líneas con formato inválido en registros.txt ignoradas: ${p.bad.slice(0,8).join(", ")}${p.bad.length>8?"…":""}`);
+  return p;
+}
+async function writeFile(){
+  fileBusy=true;
+  try{
+    const r=await fetch(API,{method:"PUT",headers:{"Content-Type":"text/plain; charset=utf-8"},body:buildTXT()});
+    if(!r.ok) throw new Error("HTTP "+r.status);
+    fileMod=r.headers.get("X-Mtime")||"";
+  } finally{ fileBusy=false; }
+}
+async function initFile(){
+  if(location.protocol==="file:") return;
+  try{
+    const p=await readFile();
+    if(p.rows){ times=p.out; setCustom(p.acts); hpOver=p.hp; setMods(p.mods); } else await writeFile();   // registros.txt nuevo: se llena con lo actual
+  }catch(e){ return; }
+  mode="file"; saveLocal();
+  $("#syncTxt").textContent="Guardando en registros.txt · puedes editarlo a mano y la página lo recarga";
+  render();
+}
+setInterval(async()=>{
+  if(mode!=="file" || fileBusy || busy.size) return;
+  try{
+    const r=await fetch(API,{method:"HEAD",cache:"no-store"});
+    if(!r.ok || (r.headers.get("X-Mtime")||"")===fileMod) return;
+    const p=await readFile(); times=p.out; setCustom(p.acts); hpOver=p.hp; setMods(p.mods); saveLocal(); render();
+    toast("Registros recargados desde registros.txt");
+  }catch(e){}
+},2000);
 
 async function writeTimes(id, val){
   if(busy.has(id)) return;
@@ -249,12 +517,112 @@ async function writeTimes(id, val){
     if(mode==="shared"){
       const ref = coll.doc(id);
       if(val) await ref.set(val); else await ref.delete();
+    } else if(mode==="file"){
+      await writeFile(); saveLocal();
     } else saveLocal();
   }catch(e){
     if(prev) times[id]=prev; else delete times[id];
     toast(e && e.code==="invalid_argument" ? "No tienes permiso para registrar tiempos en esta página." : "No se pudo guardar. Intenta de nuevo.");
   }finally{ busy.delete(id); render(); }
 }
+
+async function writeAct(id, def){
+  busy.add(id);
+  const prevA=custom[id], prevT=times[id], next={...custom};
+  if(def) next[id]=def; else { delete next[id]; delete times[id]; }
+  setCustom(next); render();
+  try{
+    if(mode==="shared"){
+      if(def) await acoll.doc(id).set({...def, nodos:def.nodos.join(", ")});
+      else { await acoll.doc(id).delete(); if(prevT) await coll.doc(id).delete(); }
+    } else if(mode==="file"){ await writeFile(); saveLocal(); }
+    else saveLocal();
+    return true;
+  }catch(e){
+    const back={...custom}; if(prevA) back[id]=prevA; else delete back[id];
+    if(prevT) times[id]=prevT;
+    setCustom(back);
+    toast("No se pudo guardar la actividad. Intenta de nuevo.");
+    return false;
+  }finally{ busy.delete(id); render(); }
+}
+
+async function writeMod(id, m){   // m: datos nuevos o null = volver al original
+  const had=id in mods, prev=mods[id], next={...mods};
+  if(m && !sameAsBase(id,m)) next[id]=m; else delete next[id];
+  busy.add(id); setMods(next); render();
+  try{
+    if(mode==="shared"){ if(next[id]) await mcoll.doc(id).set({...next[id], nodos:next[id].nodos.join(", ")}); else await mcoll.doc(id).delete(); }
+    else if(mode==="file"){ await writeFile(); saveLocal(); }
+    else saveLocal();
+    return true;
+  }catch(e){
+    const back={...mods}; if(had) back[id]=prev; else delete back[id];
+    setMods(back);
+    toast("No se pudo guardar el cambio. Intenta de nuevo.");
+    return false;
+  }finally{ busy.delete(id); render(); }
+}
+
+async function writeHp(id, h){   // h: nueva hora ("" = sin hora) o null = restaurar la original
+  if(custom[id]) return writeAct(id, {...custom[id], hp:h||""});
+  const base=BASE_ACTS.find(a=>a.id===id), had=id in hpOver, prev=hpOver[id];
+  if(h==null || h===(base.hp||"")) delete hpOver[id]; else hpOver[id]=h;
+  busy.add(id); render();
+  try{
+    if(mode==="shared"){ if(id in hpOver) await hcoll.doc(id).set({hp:hpOver[id]}); else await hcoll.doc(id).delete(); }
+    else if(mode==="file"){ await writeFile(); saveLocal(); }
+    else saveLocal();
+    return true;
+  }catch(e){
+    if(had) hpOver[id]=prev; else delete hpOver[id];
+    toast("No se pudo guardar la hora. Intenta de nuevo.");
+    return false;
+  }finally{ busy.delete(id); render(); }
+}
+
+/* Confirmación con modal propio (en lugar de confirm() del navegador). */
+function ask(title, msg, okText, danger=true){
+  const d=$("#cfDlg");
+  $("#cfT").textContent=title; $("#cfM").textContent=msg;
+  $("#cfYes").textContent=okText||"Aceptar";
+  $("#cfYes").className="b "+(danger?"b-danger":"b-start");
+  return new Promise(res=>{
+    let ok=false;
+    $("#cfForm").onsubmit=e=>{ e.preventDefault(); ok=true; d.close(); };
+    $("#cfNo").onclick=()=>d.close();
+    d.onclose=()=>res(ok);
+    d.showModal(); $("#cfNo").focus();
+  });
+}
+
+async function resetIni(id){
+  const t=times[id]; if(!t||!t.inicio) return;
+  if(t.fin && !await ask("Reiniciar inicio", "También se borrará el fin y la actividad volverá a pendiente.", "Reiniciar")) return;
+  writeTimes(id,null); toast("Inicio reiniciado");
+}
+function resetFin(id){
+  const t=times[id]; if(!t||!t.fin) return;
+  writeTimes(id,{inicio:t.inicio,fin:null}); toast("Fin reiniciado · la actividad vuelve a estar en curso");
+}
+async function resetAll(){
+  const ids=Object.keys(times);
+  if(!ids.length){ toast("No hay tiempos registrados."); return; }
+  if(!await ask("Reiniciar todos los tiempos",
+    `Se borrará el inicio y el fin de ${ids.length===1?"la actividad que tiene tiempos":"las "+ids.length+" actividades que tienen tiempos"}. Esta acción no se puede deshacer.`,
+    "Reiniciar todo")) return;
+  const prev=times;
+  times={}; ids.forEach(id=>busy.add(id)); render();
+  try{
+    if(mode==="shared") await Promise.all(ids.map(id=>coll.doc(id).delete()));
+    else if(mode==="file"){ await writeFile(); saveLocal(); }
+    else saveLocal();
+    toast("Todos los tiempos fueron reiniciados");
+  }catch(e){
+    times=prev; toast("No se pudo reiniciar. Intenta de nuevo.");
+  }finally{ ids.forEach(id=>busy.delete(id)); render(); }
+}
+$("#resetAllBtn").onclick=()=>{ if(mode!=="pending") resetAll(); };
 
 function startAct(id){ if(status(id)!=="pend") return; writeTimes(id,{inicio:Date.now(),fin:null}); }
 function endAct(id){ if(status(id)!=="run") return; writeTimes(id,{inicio:times[id].inicio,fin:Date.now()}); }
@@ -270,27 +638,30 @@ function matches(a){
   return true;
 }
 
-function rowHTML(a, now){
-  const st=status(a.id), t=times[a.id]||{}, d=dur(a.id,now);
+function rowHTML(a, now, ord, showPh){
+  const st=status(a.id), t=times[a.id]||{}, d=dur(a.id,now), n=ord&&ord.get(a.id);
   const over = d!=null && d>OVER;
   const ar=AREAS[a.area]||{label:a.area,c:"var(--muted)"};
   const cls=["row", st==="run"?"running":"", st==="done"?"done":"", over?"over":""].join(" ");
-  const meta=[`<span class="tag">${esc(ar.label)}</span>`, esc(a.pais)];
-  if(a.comp) meta.push(esc(a.comp));
+  const meta=[`<span class="tag">${esc(ar.label)}</span>`, `<span>${esc(a.pais)}</span>`];
+  if(showPh) meta.unshift(`<span>${esc(a.ph.charAt(0)+a.ph.slice(1).toLowerCase())}${a.sub?" · "+esc(a.sub):""}</span>`);
+  if(custom[a.id]) meta.push(`<span class="tag new">Agregada</span>`);
+  else if(mods[a.id]) meta.push(`<span class="tag new" title="Datos cambiados respecto al plan original">Modificada</span>`);
+  if(a.comp) meta.push(`<span>${esc(a.comp)}</span>`);
   if(a.nodos.length) meta.push(`<span class="nodes">${esc(a.nodos.join(" · "))}</span>`);
   const dis = mode==="pending"||busy.has(a.id);
   return `<div class="${cls}" style="--c:${ar.c}" data-id="${a.id}">
-    <div class="hp">${esc(a.hp||"")}</div>
+    <button class="hp${hpOf(a)?"":" empty-hp"}${!custom[a.id] && a.id in hpOver?" adj":""}" data-do="hp" ${dis?"disabled":""} title="${!custom[a.id] && a.id in hpOver?"Hora ajustada (original: "+esc(a.hp||"sin hora")+") · clic para cambiar":"Ajustar hora plan"}" aria-label="Hora plan: ${esc(a.act)}">${esc(hpOf(a)||"+ hora")}</button>
     <div class="act"><div class="name">${esc(a.act)}</div><div class="meta">${meta.join("")}</div></div>
     <div class="times">
-      <div><div class="k">Inicio</div><div class="v">${fmtTime(t.inicio)}</div></div>
-      <div><div class="k">Fin</div><div class="v">${fmtTime(t.fin)}</div></div>
+      <div><div class="k">Inicio</div><div class="v">${fmtTime(t.inicio)}${t.inicio?`<button class="rst" data-do="rstIni" ${dis?"disabled":""} title="Reiniciar inicio (vuelve a pendiente)" aria-label="Reiniciar inicio: ${esc(a.act)}">↺</button>`:""}</div></div>
+      <div><div class="k">Fin</div><div class="v">${fmtTime(t.fin)}${n?`<span class="ord" title="Orden de finalización">#${n}</span>`:""}${t.fin?`<button class="rst" data-do="rstFin" ${dis?"disabled":""} title="Reiniciar fin (vuelve a en curso)" aria-label="Reiniciar fin: ${esc(a.act)}">↺</button>`:""}</div></div>
       <div class="dur" ${st==="run"?'data-live="'+a.id+'"':""}>${d==null?"—":fmtDur(d)}${over?'<span class="flag">Supera 1 h</span>':""}</div>
     </div>
     <div class="acts">
       <button class="b b-start" data-do="start" ${st!=="pend"||dis?"disabled":""} aria-label="Iniciar: ${esc(a.act)}">Iniciar</button>
       <button class="b b-end" data-do="end" ${st!=="run"||dis?"disabled":""} aria-label="Finalizar: ${esc(a.act)}">Finalizar</button>
-      <button class="b-more" data-do="edit" ${dis?"disabled":""} title="Corregir o borrar tiempos" aria-label="Corregir tiempos: ${esc(a.act)}">⋯</button>
+      <button class="b-more" data-do="edit" ${dis?"disabled":""} title="Corregir tiempos o editar la actividad" aria-label="Corregir tiempos: ${esc(a.act)}">⋯</button>
     </div>
   </div>`;
 }
@@ -307,8 +678,16 @@ function phaseStats(list, now){
 }
 
 function render(){
-  const now=Date.now();
+  const now=Date.now(), ord=finOrder();
   let html="";
+  if(fStatus==="done"){
+    const vis=doneInOrder().filter(matches);
+    if(vis.length) html=`<section class="phase"><div class="phase-h" style="cursor:default"><h2 class="cond">Orden de finalización</h2>
+      <span class="phase-m"><span><b>${vis.length}</b> finalizadas, de la primera a la última</span></span></div><div class="rows">${vis.map(a=>rowHTML(a,now,ord,true)).join("")}</div></section>`;
+    $("#list").innerHTML = html || `<div class="empty">Todavía no hay actividades finalizadas${fQuery||fArea?" que coincidan con el filtro":""}.</div>`;
+    renderAreas(now); renderBoard(now);
+    return;
+  }
   for(const ph of PHASE_ORDER){
     const all=ACTS.filter(a=>a.ph===ph);
     const vis=all.filter(matches);
@@ -323,8 +702,9 @@ function render(){
     for(const a of vis){
       if(a.sub && a.sub!==lastSub) html+=`<div class="sub">${esc(a.sub)}</div>`;
       lastSub=a.sub;
-      html+=rowHTML(a,now);
+      html+=rowHTML(a,now,ord);
     }
+    if(mode!=="pending") html+=`<button class="add" data-add="${esc(ph)}">+ Agregar actividad en ${esc(ph.charAt(0)+ph.slice(1).toLowerCase())}</button>`;
     html+=`</div></section>`;
   }
   $("#list").innerHTML = html || `<div class="empty">Ninguna actividad coincide con el filtro.</div>`;
@@ -374,10 +754,15 @@ setInterval(tick,1000);
 $("#list").addEventListener("click",e=>{
   const tg=e.target.closest("[data-toggle]");
   if(tg){ const ph=tg.dataset.toggle; closed.has(ph)?closed.delete(ph):closed.add(ph); render(); return; }
+  const ad=e.target.closest("[data-add]");
+  if(ad){ openAdd(ad.dataset.add); return; }
   const b=e.target.closest("[data-do]"); if(!b||b.disabled) return;
   const id=b.closest(".row").dataset.id;
   if(b.dataset.do==="start") startAct(id);
   else if(b.dataset.do==="end") endAct(id);
+  else if(b.dataset.do==="hp") openHp(id);
+  else if(b.dataset.do==="rstIni") resetIni(id);
+  else if(b.dataset.do==="rstFin") resetFin(id);
   else openEdit(id);
 });
 $("#areas").addEventListener("click",e=>{ const b=e.target.closest("[data-area]"); if(!b) return; fArea = fArea===b.dataset.area?null:b.dataset.area; render(); });
@@ -393,10 +778,103 @@ function openEdit(id){
   $("#dlgS").textContent=a.act+(a.nodos.length?" — "+a.nodos.join(", "):"");
   $("#fIni").value=toLocalInput(t.inicio); $("#fFin").value=toLocalInput(t.fin);
   $("#dlgReset").disabled=!t.inicio;
+  $("#dlgDel").hidden=!custom[id];
   dlg.showModal();
 }
+$("#dlgEditAct").onclick=()=>{ dlg.close(); openActForm(null, editId); };
+$("#dlgDel").onclick=async()=>{
+  dlg.close();
+  if(!await ask("Eliminar actividad", "Se eliminará esta actividad agregada y sus tiempos registrados.", "Eliminar")) return;
+  if(await writeAct(editId,null)) toast("Actividad eliminada");
+};
+
+/* hora plan */
+let hpId=null; const hpDlg=$("#hpDlg");
+function openHp(id){
+  hpId=id; const a=ACTS.find(x=>x.id===id), cur=hpOf(a), isBase=!custom[id];
+  $("#hpS").textContent=a.act+(a.nodos.length?" — "+a.nodos.join(", "):"");
+  $("#hpIn").value=hpToInput(cur);
+  $("#hpOrig").textContent = isBase ? "Hora original del plan: "+(a.hp||"sin hora") : "";
+  $("#hpRestore").hidden = !(isBase && id in hpOver);
+  $("#hpClear").disabled = !cur;
+  hpDlg.showModal(); $("#hpIn").focus();
+}
+$("#hpCancel").onclick=()=>hpDlg.close();
+$("#hpClear").onclick=async()=>{ hpDlg.close(); if(await writeHp(hpId,"")) toast("Hora plan quitada"); };
+$("#hpRestore").onclick=async()=>{ hpDlg.close(); if(await writeHp(hpId,null)) toast("Hora plan restaurada"); };
+$("#hpForm").addEventListener("submit",async e=>{
+  e.preventDefault();
+  const v=$("#hpIn").value;
+  if(!v){ toast("Indica una hora o usa «Quitar hora»."); return; }
+  hpDlg.close();
+  if(await writeHp(hpId,hpFromInput(v))) toast("Hora plan guardada");
+});
+
+/* agregar actividad */
+const addDlg=$("#addDlg");
+let formId=null;   // null = agregar; id = editar esa actividad
+function fillSubs(keep){
+  const ph=$("#aPh").value, subs=[...new Set(ACTS.filter(a=>a.ph===ph && a.sub).map(a=>a.sub))];
+  if(keep && !subs.includes(keep)) subs.push(keep);
+  $("#aSub").innerHTML='<option value="">(sin grupo)</option>'+subs.map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join("");
+  $("#aSub").value=keep||"";
+  $("#aSubW").hidden=!subs.length;
+}
+function openActForm(ph, id){
+  formId=id||null;
+  const a=id?ACTS.find(x=>x.id===id):null, isBase=!!a && !custom[id];
+  ph=a?a.ph:ph;
+  $("#aPh").innerHTML=PHASE_ORDER.map(p=>`<option value="${esc(p)}" ${p===ph?"selected":""}>${esc(p.charAt(0)+p.slice(1).toLowerCase())}</option>`).join("");
+  fillSubs(a&&a.sub);
+  $("#aPh").disabled=$("#aSub").disabled=isBase;
+  $("#aArea").innerHTML=Object.entries(AREAS).map(([k,x])=>`<option value="${k}">${esc(x.label)}</option>`).join("");
+  $("#compList").innerHTML=[...new Set(ACTS.map(x=>x.comp).filter(Boolean))].map(c=>`<option value="${esc(c)}">`).join("");
+  $("#aAct").value=a?a.act:""; $("#aComp").value=a?a.comp:""; $("#aNodos").value=a?a.nodos.join(", "):"";
+  $("#aHp").value=a?hpOf(a):""; $("#aPais").value=a?a.pais:"VE";
+  if(a) $("#aArea").value=a.area;
+  $("#addT").textContent=a?"Editar actividad":"Agregar actividad";
+  $("#addP").textContent=!a?"Se guarda en registros.txt junto con los tiempos."
+    : isBase?"Actividad del plan: la fase y el grupo no se pueden cambiar. Los cambios se guardan en registros.txt."
+    : "Actividad agregada. Los cambios se guardan en registros.txt.";
+  $("#addOk").textContent=a?"Guardar":"Agregar";
+  $("#addRestore").hidden=!(isBase && mods[id]);
+  addDlg.showModal(); $("#aAct").focus();
+}
+function openAdd(ph){ openActForm(ph, null); }
+$("#addRestore").onclick=async()=>{
+  addDlg.close();
+  if(!await ask("Restaurar original", "La actividad volverá a los datos originales del plan. La hora plan no cambia.", "Restaurar", false)) return;
+  if(await writeMod(formId,null)) toast("Actividad restaurada al plan original");
+};
+$("#aPh").onchange=()=>fillSubs();
+$("#addCancel").onclick=()=>addDlg.close();
+$("#addForm").addEventListener("submit",async e=>{
+  e.preventDefault();
+  const clean=v=>v.trim().replace(/\|/g,"/");
+  const act=clean($("#aAct").value);
+  if(!act){ toast("Escribe el nombre de la actividad."); $("#aAct").focus(); return; }
+  const hpRaw=clean($("#aHp").value);
+  if(hpRaw && !hpToInput(hpRaw)){ toast("Hora plan no válida. Usa por ejemplo 9:00pm o 21:00."); $("#aHp").focus(); return; }
+  const hp=hpRaw?hpFromInput(hpToInput(hpRaw)):"";
+  const data={act, area:$("#aArea").value, comp:clean($("#aComp").value), pais:$("#aPais").value, nodos:splitNodos(clean($("#aNodos").value))};
+  addDlg.close();
+  if(formId && !custom[formId]){          // actividad del plan
+    const id=formId, cur=ACTS.find(x=>x.id===id);
+    let ok=await writeMod(id,data);
+    if(ok && hp!==hpOf(cur)) ok=await writeHp(id,hp);
+    if(ok) toast("Actividad actualizada");
+    return;
+  }
+  const id=formId||"n"+Date.now().toString(36);
+  const def={id, ph:$("#aPh").value, sub:$("#aSub").value||null, hp, ...data};
+  closed.delete(def.ph);
+  if(await writeAct(id,def)) toast(formId?"Actividad actualizada":"Actividad agregada");
+});
 $("#dlgCancel").onclick=()=>dlg.close();
-$("#dlgReset").onclick=()=>{ if(confirm("¿Borrar los tiempos registrados de esta actividad?")){ writeTimes(editId,null); dlg.close(); toast("Tiempos borrados"); } };
+$("#dlgReset").onclick=async()=>{
+  dlg.close();
+  if(await ask("Borrar tiempos", "Se borrarán el inicio y el fin registrados de esta actividad.", "Borrar")){ writeTimes(editId,null); toast("Tiempos borrados"); }
+};
 $("#dlgForm").addEventListener("submit",e=>{
   e.preventDefault();
   const i=$("#fIni").value?new Date($("#fIni").value).getTime():null;
@@ -409,18 +887,18 @@ $("#dlgForm").addEventListener("submit",e=>{
 /* export */
 function csvCell(v){ v=v==null?"":String(v); return /[";\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v; }
 function buildCSV(){
-  const now=Date.now();
-  const head=["Fase","Grupo","Hora plan","País","Componente","Área","Actividad","Nodos","Estado","Inicio","Fin","Duración (hh:mm:ss)","Duración (min)","Supera 1 h"];
+  const now=Date.now(), ord=finOrder();
+  const head=["Orden fin","Fase","Grupo","Hora plan","País","Componente","Área","Actividad","Nodos","Estado","Inicio","Fin","Duración (hh:mm:ss)","Duración (min)","Supera 1 h"];
   const lines=[head.join(";")];
   for(const a of ACTS){
     const st=status(a.id), t=times[a.id]||{}, d=dur(a.id,now);
-    lines.push([a.ph,a.sub||"",a.hp,a.pais,a.comp,(AREAS[a.area]||{}).label||a.area,a.act,a.nodos.join(" "),
+    lines.push([ord.get(a.id)||"",a.ph,a.sub||"",hpOf(a),a.pais,a.comp,(AREAS[a.area]||{}).label||a.area,a.act,a.nodos.join(" "),
       {pend:"Pendiente",run:"En curso",done:"Finalizada"}[st],fmtDT(t.inicio),fmtDT(t.fin),
       d==null?"":fmtDur(d), d==null?"":(d/60000).toFixed(1).replace(".",","), d!=null&&d>OVER?"Sí":""].map(csvCell).join(";"));
   }
   const s=phaseStats(ACTS,now);
-  lines.push(""); lines.push(["Total ventana","","","","","","","","","",fmtDT(s.first),"",fmtDur(s.win),(s.win/60000).toFixed(1).replace(".",",")].map(csvCell).join(";"));
-  lines.push(["Suma de actividades","","","","","","","","","","","",fmtDur(s.sum),(s.sum/60000).toFixed(1).replace(".",",")].map(csvCell).join(";"));
+  lines.push(""); lines.push(["","Total ventana","","","","","","","","","",fmtDT(s.first),"",fmtDur(s.win),(s.win/60000).toFixed(1).replace(".",",")].map(csvCell).join(";"));
+  lines.push(["","Suma de actividades","","","","","","","","","","","",fmtDur(s.sum),(s.sum/60000).toFixed(1).replace(".",",")].map(csvCell).join(";"));
   return "\ufeff"+lines.join("\r\n");
 }
 
@@ -441,6 +919,29 @@ render();
   db = window.claude && window.claude.use ? await window.claude.use("db").catch(()=>null) : null;
   if(db){
     coll = db.collection("tiempos");
+    acoll = db.collection("actividades");
+    hcoll = db.collection("horas");
+    mcoll = db.collection("cambios");
+    mcoll.onSnapshot(snap=>{
+      const next={};
+      snap.docs.forEach(d=>{ const v=d.data(); if(v && v.act && BASE_IDS.has(d.id))
+        next[d.id]={act:v.act, area:AREAS[v.area]?v.area:areaKey(v.area)||BASE_BY_ID[d.id].area, comp:v.comp||"", pais:v.pais||"VE", nodos:splitNodos(v.nodos)}; });
+      for(const id of busy) if(mods[id]) next[id]=mods[id]; else delete next[id];
+      setMods(next); render();
+    }, ()=>{});
+    hcoll.onSnapshot(snap=>{
+      const next={};
+      snap.docs.forEach(d=>{ const v=d.data(); if(v && typeof v.hp==="string" && BASE_IDS.has(d.id)) next[d.id]=v.hp; });
+      for(const id of busy) if(id in hpOver) next[id]=hpOver[id]; else delete next[id];
+      hpOver=next; render();
+    }, ()=>{});
+    acoll.onSnapshot(snap=>{
+      const next={};
+      snap.docs.forEach(d=>{ const v=d.data(); if(v && v.act && PHASE_ORDER.includes(v.ph))
+        next[d.id]={id:d.id, ph:v.ph, sub:v.sub||null, hp:v.hp||"", pais:v.pais||"VE", comp:v.comp||"", area:AREAS[v.area]?v.area:areaKey(v.area)||v.area, act:v.act, nodos:splitNodos(v.nodos)}; });
+      for(const id of busy) if(custom[id]) next[id]=custom[id]; else delete next[id];
+      setCustom(next); render();
+    }, ()=>{});
     let first=true;
     coll.onSnapshot(snap=>{
       const next={};
@@ -450,12 +951,14 @@ render();
       if(first){ first=false; mode="shared"; $("#syncTxt").textContent="Tiempos compartidos en vivo con todo el equipo que abra esta página"; }
       render();
     }, err=>{
-      mode="local"; loadLocal(); $("#syncTxt").textContent="Sin conexión compartida: los tiempos se guardan solo en este navegador"; render();
+      mode="local"; loadLocal(); $("#syncTxt").textContent="Sin conexión compartida: los tiempos se guardan solo en este navegador"; render(); initFile();
     });
   } else {
     mode="local"; loadLocal();
-    $("#syncTxt").textContent="Modo local: los tiempos se guardan solo en este navegador";
+    $("#syncTxt").textContent = location.protocol==="file:" ? "Modo local: abre la página con iniciar.bat para guardar los registros en registros.txt"
+      : "Modo local: los tiempos se guardan solo en este navegador";
     render();
+    initFile();
   }
 })();
 </script>
