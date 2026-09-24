@@ -165,14 +165,23 @@ dialog input{width:100%;padding:8px 10px;border:1px solid var(--line);border-rad
 
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:4px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:50;max-width:calc(100% - 32px)}
 .toast.show{opacity:1}
-.auth-screen{position:fixed;inset:0;z-index:100;background:var(--bg);display:grid;place-items:center;padding:20px}
-.auth-card{width:min(100%,380px);background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:24px;box-shadow:0 8px 30px rgba(24,34,45,.12)}
-.auth-card h1{margin:0 0 6px;font:600 28px/1.1 "Barlow Condensed","Arial Narrow",sans-serif}
-.auth-card p{margin:0 0 18px;color:var(--muted)}
-.auth-card label{display:block;margin:12px 0 5px;font-size:13px;font-weight:600}
-.auth-card input{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:4px;background:var(--bg);color:var(--ink);font:inherit}
-.auth-error{min-height:20px;margin-top:10px;color:var(--over);font-size:13px}
-.auth-card .b{width:100%;margin-top:4px}
+.auth-screen{position:fixed;inset:0;z-index:100;display:grid;place-items:center;padding:20px;background:
+  radial-gradient(circle at 18% 12%,rgba(221,157,111,.45),transparent 34%),
+  radial-gradient(circle at 86% 8%,rgba(221,188,111,.35),transparent 30%),
+  linear-gradient(135deg,#c49d8c 0%,#34404b 46%,#261f35 100%)}
+.auth-card{width:min(100%,400px);background:rgba(20,24,32,.82);border:1px solid rgba(255,255,255,.12);border-radius:0;padding:42px 32px 38px;box-shadow:0 22px 60px rgba(0,0,0,.28);color:#f7f7f7}
+.auth-card h1{margin:0 0 30px;text-align:center;font:300 29px/1.1 "Segoe UI",Arial,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#f1f1f1}
+.auth-card p{display:none}
+.auth-card label{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.auth-field{display:flex;height:55px;margin-top:22px;background:rgba(7,10,16,.72)}
+.auth-icon{display:grid;place-items:center;width:55px;background:rgba(255,255,255,.22);font-size:24px;color:#f2f2f2}
+.auth-card input{min-width:0;flex:1;padding:0 16px;border:0;border-radius:0;background:transparent;color:#fff;font:16px "Segoe UI",Arial,sans-serif}
+.auth-card input::placeholder{color:rgba(255,255,255,.62)}
+.auth-card input:focus{outline:0;background:rgba(255,255,255,.04)}
+.auth-error{min-height:20px;margin:12px 0 0;color:#ffb0a5;font-size:13px;text-align:center}
+.auth-card .b{width:100%;height:48px;margin-top:15px;border:0;border-radius:0;background:#f1eeee;color:#20222a;font-size:15px;letter-spacing:.12em;text-transform:uppercase}
+.auth-card .b:hover{background:#fff}
+.auth-help{display:block;margin-top:19px;color:rgba(255,255,255,.62);font-size:14px;text-align:center}
 .authenticated .auth-screen{display:none}
 
 /* Operational layout: restrained colors, compact controls, no decorative cards. */
@@ -234,7 +243,7 @@ main{padding-top:16px}
 .b{border-radius:2px;padding:8px 10px}
 .b-more{border-radius:2px}
 .add{border-radius:2px}
-.auth-card{border-radius:3px;box-shadow:0 4px 18px rgba(32,42,52,.1)}
+.auth-card{border-radius:0;box-shadow:0 22px 60px rgba(0,0,0,.28)}
 @media (max-width:980px){
   .row{grid-template-columns:56px minmax(0,1fr) 210px 170px;gap:9px}
 }
@@ -265,14 +274,20 @@ main{padding-top:16px}
 
 <section class="auth-screen" id="authScreen" aria-label="Inicio de sesión">
   <form class="auth-card" id="authForm">
-    <h1>ProyectoVerticalTiempos</h1>
-    <p>Ingresa tus credenciales para continuar.</p>
+    <h1>Acceso al sistema</h1>
     <label for="authUser">Usuario</label>
-    <input id="authUser" autocomplete="username" required>
+    <div class="auth-field">
+      <span class="auth-icon" aria-hidden="true">●</span>
+      <input id="authUser" placeholder="Usuario" autocomplete="username" required>
+    </div>
     <label for="authPass">Contraseña</label>
-    <input id="authPass" type="password" autocomplete="current-password" required>
+    <div class="auth-field">
+      <span class="auth-icon" aria-hidden="true">▣</span>
+      <input id="authPass" type="password" placeholder="Contraseña" autocomplete="current-password" required>
+    </div>
     <div class="auth-error" id="authError" role="alert"></div>
     <button class="b b-start" type="submit">Ingresar</button>
+    <span class="auth-help">Usa las credenciales asignadas por el administrador</span>
   </form>
 </section>
 
