@@ -1,4 +1,4 @@
-# Despliega el cronómetro en el servidor Red Hat por SSH cada vez que se sube a la rama deployment.
+# Despliega el cronómetro en un servidor Ubuntu por SSH cada vez que se sube a la rama deployment.
 # También se puede lanzar a mano desde la pestaña Actions ("Run workflow").
 #
 # Secrets del repositorio (Settings > Secrets and variables > Actions):
@@ -10,7 +10,7 @@
 #   DEPLOY_PORT         puerto SSH (22 por defecto)
 #
 # registros.txt no se toca: vive en /opt/cronometro y no está en el repositorio.
-name: Desplegar en Red Hat
+name: Desplegar en Ubuntu
 
 on:
   push:

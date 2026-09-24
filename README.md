@@ -119,11 +119,11 @@ python server.py
         └── deploy.yml
 ```
 
-## Despliegue en Red Hat/RHEL
+## Despliegue en Ubuntu
 
 El script [deploy/instalar.sh](deploy/instalar.sh) instala la aplicación como
-un servicio systemd en `/opt/cronometro`. Está diseñado para Red Hat/RHEL 8 y
-9 y debe ejecutarse con permisos de administrador.
+un servicio systemd en `/opt/cronometro`. Es compatible con Ubuntu y debe
+ejecutarse con permisos de administrador.
 
 Desde la raíz del proyecto en el servidor:
 
@@ -133,15 +133,14 @@ sudo bash deploy/instalar.sh
 
 El instalador:
 
-1. Instala Python 3 con `dnf` si no está disponible.
+1. Instala Python 3 con `apt` si no está disponible.
 2. Crea el usuario de sistema no privilegiado `cronometro`.
 3. Copia `server.py` y la página HTML a `/opt/cronometro`.
 4. Crea `registros.txt` si todavía no existe.
 5. Conserva los registros existentes durante las actualizaciones.
 6. Instala el servicio `cronometro.service`.
 7. Habilita el servicio para iniciar con el sistema y lo reinicia.
-8. Abre el puerto TCP `8080` solo si `firewalld` está activo y el puerto aún
-   no está permitido.
+8. Abre el puerto TCP `8080` si `ufw` está activo.
 
 El servicio se ejecuta como el usuario `cronometro`, utiliza
 `/opt/cronometro/registros.txt` y escucha en el puerto `8080`.
@@ -166,9 +165,8 @@ El instalador reinicia el servicio sin eliminar los registros guardados.
 
 El workflow [deploy.yml](.github/workflows/deploy.yml) se ejecuta al hacer
 `push` a la rama `deployment` y también puede iniciarse manualmente desde la
-pestaña **Actions**. Actualmente requiere un servidor Red Hat/RHEL accesible
-por SSH; si no se han configurado los secrets, la ejecución fallará de forma
-intencionada antes de conectarse.
+pestaña **Actions**. El runner temporal de GitHub usa Ubuntu y se conecta por
+SSH al servidor Ubuntu configurado.
 
 Configura estos secrets en el repositorio:
 
