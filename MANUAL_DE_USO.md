@@ -24,7 +24,7 @@ usuario, selecciona **Cerrar sesión**.
 
 ### Pantalla de acceso
 
-![Pantalla de inicio de sesión](docs/images/login.png)
+![Pantalla original de inicio de sesión](docs/images/login-original.png)
 
 Escribe las credenciales del perfil correspondiente y selecciona **Ingresar**.
 
