@@ -22,6 +22,12 @@ usuario, selecciona **Cerrar sesión**.
 > Estas credenciales son de demostración y se validan en el navegador. No
 > deben utilizarse como autenticación segura en un entorno productivo.
 
+### Pantalla de acceso
+
+![Pantalla de inicio de sesión](docs/images/login.png)
+
+Escribe las credenciales del perfil correspondiente y selecciona **Ingresar**.
+
 ## 2. Perfil usuario operativo
 
 El perfil `user` está diseñado para registrar la ejecución de las actividades.
@@ -55,6 +61,14 @@ No puede:
 
 Una actividad finalizada no puede corregirse desde este perfil. Si se registró
 un tiempo incorrecto, solicita al administrador que lo ajuste.
+
+### Vista general del dashboard
+
+![Vista general del dashboard](docs/images/dashboard.png)
+
+La barra superior resume el tiempo de la ventana de migración, las actividades
+finalizadas, las que están en curso y las pendientes. Debajo se encuentran las
+tarjetas de área, los filtros y el listado de actividades.
 
 ## 3. Perfil administrador
 
