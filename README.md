@@ -122,16 +122,45 @@ python server.py
 ## Despliegue en Red Hat/RHEL
 
 El script [deploy/instalar.sh](deploy/instalar.sh) instala la aplicación como
-un servicio systemd en `/opt/cronometro`.
+un servicio systemd en `/opt/cronometro`. Está diseñado para Red Hat/RHEL 8 y
+9 y debe ejecutarse con permisos de administrador.
 
-En el servidor:
+Desde la raíz del proyecto en el servidor:
 
 ```bash
 sudo bash deploy/instalar.sh
 ```
 
-El servicio se ejecuta como el usuario no privilegiado `cronometro` y escucha
-en el puerto `8080`.
+El instalador:
+
+1. Instala Python 3 con `dnf` si no está disponible.
+2. Crea el usuario de sistema no privilegiado `cronometro`.
+3. Copia `server.py` y la página HTML a `/opt/cronometro`.
+4. Crea `registros.txt` si todavía no existe.
+5. Conserva los registros existentes durante las actualizaciones.
+6. Instala el servicio `cronometro.service`.
+7. Habilita el servicio para iniciar con el sistema y lo reinicia.
+8. Abre el puerto TCP `8080` solo si `firewalld` está activo y el puerto aún
+   no está permitido.
+
+El servicio se ejecuta como el usuario `cronometro`, utiliza
+`/opt/cronometro/registros.txt` y escucha en el puerto `8080`.
+
+Comandos útiles para verificar el servicio:
+
+```bash
+sudo systemctl status cronometro
+sudo journalctl -u cronometro -n 50 --no-pager
+curl http://127.0.0.1:8080/api/registros
+```
+
+Después de una actualización manual, vuelve a ejecutar el instalador:
+
+```bash
+sudo bash deploy/instalar.sh
+```
+
+El instalador reinicia el servicio sin eliminar los registros guardados.
 
 ## GitHub Actions
 
