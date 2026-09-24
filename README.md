@@ -16,7 +16,7 @@ Cirion en Venezuela.
 - Edición y exportación de información desde el dashboard administrador.
 - Interfaz adaptable para escritorio y dispositivos móviles.
 
-## Modos de acceso
+## Acceso y roles
 
 ### Inicio de sesión
 
@@ -27,12 +27,13 @@ La aplicación solicita credenciales antes de mostrar el dashboard:
 | `admin` | `admin` | Administrador |
 | `user` | `user` | Usuario |
 
-El rol se conserva solo durante la sesión de la pestaña del navegador. Para
-salir, utiliza **Cerrar sesión**.
+El rol se conserva únicamente durante la sesión de la pestaña del navegador.
+Para salir, utiliza **Cerrar sesión**. Si no hay una sesión válida, el
+dashboard permanece bloqueado.
 
 ### Administrador
 
-Es el modo predeterminado. Permite:
+Inicia sesión con `admin` / `admin`. Permite:
 
 - Iniciar y finalizar tiempos.
 - Corregir o borrar tiempos.
@@ -43,19 +44,14 @@ Es el modo predeterminado. Permite:
 
 ### Usuario
 
-El dashboard restringido se obtiene iniciando sesión con `user` / `user`.
-El parámetro `?role=user` no sustituye las credenciales:
+Inicia sesión con `user` / `user`. Permite consultar las actividades e iniciar
+o finalizar sus tiempos. No puede modificar la planificación, editar
+registros, agregar actividades, eliminar información, reiniciar tiempos ni
+exportar datos.
 
-```text
-http://SERVIDOR:8080/?role=user
-```
-
-El usuario puede consultar las actividades e iniciar o finalizar sus tiempos.
-No puede modificar la planificación, editar registros, agregar actividades,
-eliminar información ni exportar datos.
-
-> El parámetro de URL es una restricción de interfaz. Para un entorno
-> productivo se recomienda agregar autenticación y autorización en el servidor.
+> Las credenciales actuales se validan en el navegador y son de demostración.
+> Para un entorno productivo se requiere autenticación y autorización en el
+> servidor. No se deben reutilizar estas credenciales en un entorno real.
 
 ## Ejecución local
 
@@ -100,6 +96,13 @@ También se puede indicar una ruta alternativa para los registros con `DATA`:
 DATA=/ruta/registros.txt python server.py
 ```
 
+En PowerShell:
+
+```powershell
+$env:PORT = "8081"
+python server.py
+```
+
 ## Estructura principal
 
 ```text
@@ -132,8 +135,11 @@ en el puerto `8080`.
 
 ## GitHub Actions
 
-El workflow de despliegue se ejecuta al hacer `push` a la rama `deployment` y
-también puede iniciarse manualmente desde la pestaña **Actions**.
+El workflow [deploy.yml](.github/workflows/deploy.yml) se ejecuta al hacer
+`push` a la rama `deployment` y también puede iniciarse manualmente desde la
+pestaña **Actions**. Actualmente requiere un servidor Red Hat/RHEL accesible
+por SSH; si no se han configurado los secrets, la ejecución fallará de forma
+intencionada antes de conectarse.
 
 Configura estos secrets en el repositorio:
 
@@ -171,7 +177,9 @@ operativos de la migración.
 
 ## Consideraciones de seguridad
 
-El servidor actual no incluye autenticación ni HTTPS. Antes de exponerlo a
-Internet o a una red no confiable, debe protegerse mediante una red privada,
-proxy inverso con HTTPS, autenticación y restricciones de acceso al endpoint
+El servidor actual no incluye autenticación de servidor ni HTTPS. Las
+credenciales `admin/admin` y `user/user` se encuentran en el frontend y no
+deben considerarse una medida de seguridad. Antes de exponerlo a Internet o a
+una red no confiable, debe protegerse mediante una red privada, proxy inverso
+con HTTPS, autenticación real y restricciones de acceso al endpoint
 `PUT /api/registros`.
