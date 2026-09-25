@@ -44,7 +44,7 @@ jobs:
           test -s "Cronómetro · Migración Storage Pure Cirion VE.html"
           test -d docs/images
           test -f docs/images/login-current.png
-          script="$(mktemp)"
+          script="$(mktemp --suffix=.js)"
           sed -n '/<script>/,/<\/script>/p' "Cronómetro · Migración Storage Pure Cirion VE.html" \
             | sed '1d;$d' > "$script"
           node --check "$script"
