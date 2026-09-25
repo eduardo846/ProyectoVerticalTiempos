@@ -1146,17 +1146,19 @@ function buildCSV(){
 
 /* ---------- boot ---------- */
 render();
-(async()=>{
-  const dl = window.claude && window.claude.use ? await window.claude.use("downloads").catch(()=>null) : null;
-  if(dl){
-    const btn=$("#exportBtn"); btn.hidden=false;
-    btn.onclick=async()=>{
-      const d=new Date(), name=`tiempos-migracion-cirion-ve-${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}.csv`;
-      try{ await dl.save({filename:name,data:buildCSV()}); toast("Archivo descargado"); }
-      catch(e){ if(e&&e.code!=="declined") toast("No se pudo generar la descarga."); }
-    };
+$("#exportBtn").onclick=()=>{
+  const d=new Date(), name=`tiempos-migracion-cirion-ve-${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}.csv`;
+  try{
+    const blob=new Blob(["\uFEFF",buildCSV()],{type:"text/csv;charset=utf-8"});
+    const url=URL.createObjectURL(blob), link=document.createElement("a");
+    link.href=url; link.download=name; link.hidden=true;
+    document.body.appendChild(link); link.click(); link.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),1000);
+    toast("Archivo descargado");
+  }catch(e){
+    toast("No se pudo generar la descarga.");
   }
-})();
+};
 (async()=>{
   db = window.claude && window.claude.use ? await window.claude.use("db").catch(()=>null) : null;
   if(db){
