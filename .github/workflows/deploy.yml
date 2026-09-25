@@ -1,58 +1,42 @@
-# Despliega el cronómetro en un servidor Ubuntu por SSH cada vez que se sube a la rama deployment.
-# También se puede lanzar a mano desde la pestaña Actions ("Run workflow").
-#
-# Secrets del repositorio (Settings > Secrets and variables > Actions):
-#   DEPLOY_HOST         IP o nombre del servidor
-#   DEPLOY_USER         usuario SSH (necesita sudo sin contraseña para instalar.sh)
-#   DEPLOY_SSH_KEY      llave privada SSH de ese usuario
-#   DEPLOY_KNOWN_HOSTS  salida de `ssh-keyscan -p PUERTO HOST` (opcional; si falta se consulta al vuelo)
-# Variable opcional:
-#   DEPLOY_PORT         puerto SSH (22 por defecto)
-#
-# registros.txt no se toca: vive en /opt/cronometro y no está en el repositorio.
-name: Desplegar en Ubuntu
+# .github/workflows/deploy.yml
+# Despliega la aplicación HTML estática en Netlify: producción en push a main,
+# preview en pull requests.
+# Requiere los secretos NETLIFY_AUTH_TOKEN y NETLIFY_SITE_ID en
+# Settings → Secrets and variables → Actions del repositorio.
+
+name: Deploy a Netlify
 
 on:
   push:
-    branches: [deployment]
-  workflow_dispatch:
-
-concurrency:
-  group: deploy-cronometro
-  cancel-in-progress: false
+    branches: [main]
+  pull_request:
+    branches: [main]
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
     env:
-      SRV_HOST: ${{ secrets.DEPLOY_HOST }}
-      SRV_USER: ${{ secrets.DEPLOY_USER }}
-      SRV_PORT: ${{ vars.DEPLOY_PORT || '22' }}
+      NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+      NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+      PUBLISH_DIR: dist
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: Configurar SSH
-        env:
-          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
-          KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+      - name: Preparar sitio estático
+        shell: bash
         run: |
-          test -n "$SRV_HOST" && test -n "$SRV_USER" && test -n "$SSH_KEY" || { echo "::error::Faltan los secrets DEPLOY_HOST, DEPLOY_USER o DEPLOY_SSH_KEY"; exit 1; }
-          install -m 700 -d ~/.ssh
-          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_deploy && chmod 600 ~/.ssh/id_deploy
-          if [ -n "$KNOWN_HOSTS" ]; then printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
-          else ssh-keyscan -p "$SRV_PORT" "$SRV_HOST" > ~/.ssh/known_hosts 2>/dev/null; fi
-          printf 'Host srv\n  HostName %s\n  User %s\n  Port %s\n  IdentityFile ~/.ssh/id_deploy\n  BatchMode yes\n' "$SRV_HOST" "$SRV_USER" "$SRV_PORT" > ~/.ssh/config
+          set -euo pipefail
+          rm -rf "$PUBLISH_DIR"
+          mkdir -p "$PUBLISH_DIR/docs/images"
+          cp "Cronómetro · Migración Storage Pure Cirion VE.html" "$PUBLISH_DIR/index.html"
+          cp docs/images/* "$PUBLISH_DIR/docs/images/"
 
-      - name: Copiar archivos al servidor
-        run: |
-          tar czf - server.py deploy Cron*metro*.html \
-            | ssh srv 'rm -rf ~/cronometro-src && mkdir -p ~/cronometro-src && tar xzf - -C ~/cronometro-src'
+      - name: Deploy a producción
+        if: github.event_name == 'push'
+        run: npx --yes netlify-cli deploy --dir="$PUBLISH_DIR" --prod --message "Deploy ${{ github.sha }}"
 
-      - name: Instalar y reiniciar el servicio
-        run: ssh srv 'sudo bash ~/cronometro-src/deploy/instalar.sh'
-
-      - name: Verificar que responde
-        run: |
-          ssh srv 'for i in 1 2 3 4 5; do curl -fsS -o /dev/null http://127.0.0.1:8080/api/registros && exit 0; sleep 2; done; sudo journalctl -u cronometro -n 30 --no-pager; exit 1'
-          echo "Desplegado en http://$SRV_HOST:8080" >> "$GITHUB_STEP_SUMMARY"
+      - name: Deploy preview (PR)
+        if: github.event_name == 'pull_request'
+        run: npx --yes netlify-cli deploy --dir="$PUBLISH_DIR" --alias "pr-${{ github.event.number }}" --message "PR #${{ github.event.number }}"

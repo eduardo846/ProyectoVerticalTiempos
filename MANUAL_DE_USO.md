@@ -81,6 +81,22 @@ La barra superior resume el tiempo de la ventana de migración, las actividades
 finalizadas, las que están en curso y las pendientes. Debajo se encuentran las
 tarjetas de área, los filtros y el listado de actividades.
 
+### Uso desde teléfono o tablet
+
+La pantalla se adapta automáticamente al ancho disponible:
+
+- En teléfonos, el encabezado y los filtros se organizan verticalmente.
+- Las tarjetas de área aparecen en dos columnas.
+- Cada actividad muestra primero sus datos, luego los tiempos y finalmente
+  los botones de acción.
+- Los diálogos de comentarios y edición ocupan el ancho disponible sin
+  desbordarse.
+
+Si rotas el dispositivo o cambias el tamaño de la ventana, la distribución se
+ajusta automáticamente. Si el contenido no se actualiza después de una
+actualización, utiliza **Ctrl + F5** en escritorio o recarga la página desde
+el navegador del teléfono.
+
 ## 3. Perfil administrador
 
 El perfil `admin` permite operar y mantener el plan completo.
@@ -250,6 +266,26 @@ sudo journalctl -u cronometro -n 50 --no-pager
 2. Recarga la página.
 3. Comprueba que todos los usuarios estén utilizando la misma dirección del
    servidor.
+4. Si se publicó una actualización reciente, realiza una recarga forzada con
+   **Ctrl + F5**. La sesión válida se conserva y el listado debe volver a
+   mostrarse.
+
+### El listado aparece vacío después de recargar
+
+Comprueba que JavaScript esté habilitado y vuelve a cargar la página. Si el
+problema continúa, abre la aplicación desde `server.py` en lugar de abrir
+directamente el archivo HTML:
+
+```text
+http://127.0.0.1:8080/
+```
+
+En un servidor remoto, utiliza la dirección publicada por el administrador,
+por ejemplo:
+
+```text
+http://IP_DEL_SERVIDOR:8080/
+```
 
 ### El login no permite entrar
 

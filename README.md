@@ -16,6 +16,8 @@ Cirion en Venezuela.
 - Persistencia compartida mediante `server.py` y `registros.txt`.
 - Edición y exportación de información desde el dashboard administrador.
 - Interfaz adaptable para escritorio y dispositivos móviles.
+- Diseño responsive para teléfonos, tablets y pantallas de escritorio.
+- Recarga segura de la sesión y del listado de actividades.
 
 ## Acceso y roles
 
@@ -106,6 +108,12 @@ $env:PORT = "8081"
 python server.py
 ```
 
+La interfaz se adapta automáticamente al tamaño de la pantalla. En teléfonos
+los filtros se muestran en columna, las tarjetas de área se organizan en dos
+columnas y cada actividad distribuye sus tiempos y acciones en bloques
+independientes. En escritorio se conserva la vista compacta de varias
+columnas.
+
 ## Estructura principal
 
 ```text
@@ -122,11 +130,27 @@ python server.py
         └── deploy.yml
 ```
 
-## Despliegue en Ubuntu
+## Despliegue en Red Hat/RHEL
 
 El script [deploy/instalar.sh](deploy/instalar.sh) instala la aplicación como
-un servicio systemd en `/opt/cronometro`. Es compatible con Ubuntu y debe
-ejecutarse con permisos de administrador.
+un servicio `systemd` en `/opt/cronometro`. Está preparado para Red Hat
+Enterprise Linux (RHEL) 8 y 9, y debe ejecutarse con permisos de administrador.
+
+### Requisitos del servidor
+
+- Red Hat/RHEL 8 o 9.
+- Acceso SSH con un usuario que pueda utilizar `sudo`.
+- Python 3; el instalador lo instala con `dnf` si no está disponible.
+- `systemd` activo.
+- `firewalld` habilitado si se desea abrir automáticamente el puerto `8080`.
+
+Instala los paquetes base en el servidor:
+
+```bash
+sudo dnf install -y python3 openssh-server curl firewalld
+sudo systemctl enable --now sshd
+sudo systemctl enable --now firewalld
+```
 
 Desde la raíz del proyecto en el servidor:
 
@@ -135,18 +159,20 @@ sudo bash deploy/instalar.sh
 ```
 
 El instalador:
-
-1. Instala Python 3 con `apt` si no está disponible.
+1. Instala Python 3 con `dnf` si no está disponible.
 2. Crea el usuario de sistema no privilegiado `cronometro`.
 3. Copia `server.py` y la página HTML a `/opt/cronometro`.
 4. Crea `registros.txt` si todavía no existe.
 5. Conserva los registros existentes durante las actualizaciones.
 6. Instala el servicio `cronometro.service`.
 7. Habilita el servicio para iniciar con el sistema y lo reinicia.
-8. Abre el puerto TCP `8080` si `ufw` está activo.
+8. Abre el puerto TCP `8080` si `firewalld` está activo.
 
 El servicio se ejecuta como el usuario `cronometro`, utiliza
 `/opt/cronometro/registros.txt` y escucha en el puerto `8080`.
+
+Si el servidor está detrás de un firewall externo, también debes permitir el
+puerto TCP `8080` en la red, máquina virtual o proveedor de infraestructura.
 
 Comandos útiles para verificar el servicio:
 
@@ -167,13 +193,15 @@ El instalador reinicia el servicio sin eliminar los registros guardados.
 Los comentarios se guardan en la misma línea de cada actividad dentro de
 `registros.txt`. También se incluyen en la exportación CSV. Los comentarios
 existentes se conservan al actualizar la aplicación o reiniciar el servicio.
+Al recargar la página, la sesión válida y el listado se restauran sin dejar la
+vista vacía.
 
-## GitHub Actions
+## GitHub Actions hacia Red Hat
 
 El workflow [deploy.yml](.github/workflows/deploy.yml) se ejecuta al hacer
 `push` a la rama `deployment` y también puede iniciarse manualmente desde la
 pestaña **Actions**. El runner temporal de GitHub usa Ubuntu y se conecta por
-SSH al servidor Ubuntu configurado.
+SSH al servidor Red Hat/RHEL configurado.
 
 Configura estos secrets en el repositorio:
 
@@ -199,6 +227,19 @@ El usuario remoto debe poder ejecutar mediante `sudo`:
 
 ```bash
 sudo bash ~/cronometro-src/deploy/instalar.sh
+```
+
+Para configurar el acceso SSH, instala la clave pública del usuario de
+despliegue en:
+
+```text
+/home/USUARIO/.ssh/authorized_keys
+```
+
+Prueba manualmente la conexión antes de ejecutar el workflow:
+
+```bash
+ssh -i ~/.ssh/id_ed25519 USUARIO@HOST_RED_HAT
 ```
 
 ## Persistencia y registros
