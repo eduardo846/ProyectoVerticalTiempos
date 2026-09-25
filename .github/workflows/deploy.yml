@@ -13,16 +13,38 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: netlify-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     env:
       NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
       NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
       PUBLISH_DIR: dist
+      NETLIFY_CLI_VERSION: 17.10.1
 
     steps:
-      - name: Checkout
+      - name: Validar configuración
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$NETLIFY_AUTH_TOKEN" || {
+            echo "::error::Falta el secret NETLIFY_AUTH_TOKEN"
+            exit 1
+          }
+          test -n "$NETLIFY_SITE_ID" || {
+            echo "::error::Falta el secret NETLIFY_SITE_ID"
+            exit 1
+          }
+
+      - name: Checkout del repositorio
         uses: actions/checkout@v4
 
       - name: Preparar sitio estático
@@ -33,11 +55,36 @@ jobs:
           mkdir -p "$PUBLISH_DIR/docs/images"
           cp "Cronómetro · Migración Storage Pure Cirion VE.html" "$PUBLISH_DIR/index.html"
           cp docs/images/* "$PUBLISH_DIR/docs/images/"
+          test -s "$PUBLISH_DIR/index.html"
+          test -f "$PUBLISH_DIR/docs/images/login-current.png"
+
+      - name: Publicar resumen del sitio
+        shell: bash
+        run: |
+          {
+            echo "### Deploy a Netlify"
+            echo ""
+            echo "- Rama: \`${GITHUB_REF_NAME}\`"
+            echo "- Commit: \`${GITHUB_SHA}\`"
+            echo "- Directorio publicado: \`${PUBLISH_DIR}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Deploy a producción
         if: github.event_name == 'push'
-        run: npx --yes netlify-cli deploy --dir="$PUBLISH_DIR" --prod --message "Deploy ${{ github.sha }}"
+        run: npx --yes "netlify-cli@$NETLIFY_CLI_VERSION" deploy --dir="$PUBLISH_DIR" --prod --message "Deploy ${{ github.sha }}"
 
       - name: Deploy preview (PR)
         if: github.event_name == 'pull_request'
-        run: npx --yes netlify-cli deploy --dir="$PUBLISH_DIR" --alias "pr-${{ github.event.number }}" --message "PR #${{ github.event.number }}"
+        run: npx --yes "netlify-cli@$NETLIFY_CLI_VERSION" deploy --dir="$PUBLISH_DIR" --alias "pr-${{ github.event.number }}" --message "PR #${{ github.event.number }}"
+
+      - name: Verificar sitio publicado
+        if: vars.NETLIFY_SITE_URL != ''
+        shell: bash
+        env:
+          NETLIFY_SITE_URL: ${{ vars.NETLIFY_SITE_URL }}
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --location \
+            --retry 5 --retry-delay 2 --retry-all-errors \
+            "$NETLIFY_SITE_URL" > /dev/null
+          echo "- Health-check: OK (\`$NETLIFY_SITE_URL\`)" >> "$GITHUB_STEP_SUMMARY"
