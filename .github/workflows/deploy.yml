@@ -12,18 +12,70 @@ on:
   pull_request:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      deploy_target:
+        description: "Destino del despliegue manual"
+        required: true
+        default: preview
+        type: choice
+        options:
+          - preview
+          - production
 
 permissions:
   contents: read
 
 concurrency:
   group: netlify-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  deploy:
+  validate:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    steps:
+      - name: Checkout del repositorio
+        uses: actions/checkout@v4
+
+      - name: Validar estructura y JavaScript
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s "Cronómetro · Migración Storage Pure Cirion VE.html"
+          test -d docs/images
+          test -f docs/images/login-current.png
+          script="$(mktemp)"
+          sed -n '/<script>/,/<\/script>/p' "Cronómetro · Migración Storage Pure Cirion VE.html" \
+            | sed '1d;$d' > "$script"
+          node --check "$script"
+          rm -f "$script"
+
+      - name: Preparar sitio estático
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf dist
+          mkdir -p dist/docs/images
+          cp "Cronómetro · Migración Storage Pure Cirion VE.html" dist/index.html
+          cp docs/images/* dist/docs/images/
+          test -s dist/index.html
+          test -f dist/docs/images/login-current.png
+
+      - name: Publicar artefacto del sitio
+        uses: actions/upload-artifact@v4
+        with:
+          name: netlify-site-${{ github.sha }}
+          path: dist
+          if-no-files-found: error
+          retention-days: 7
+
+  deploy:
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: >
+      github.event_name != 'pull_request' ||
+      github.event.pull_request.head.repo.full_name == github.repository
     env:
       NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
       NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
@@ -44,19 +96,11 @@ jobs:
             exit 1
           }
 
-      - name: Checkout del repositorio
-        uses: actions/checkout@v4
-
-      - name: Preparar sitio estático
-        shell: bash
-        run: |
-          set -euo pipefail
-          rm -rf "$PUBLISH_DIR"
-          mkdir -p "$PUBLISH_DIR/docs/images"
-          cp "Cronómetro · Migración Storage Pure Cirion VE.html" "$PUBLISH_DIR/index.html"
-          cp docs/images/* "$PUBLISH_DIR/docs/images/"
-          test -s "$PUBLISH_DIR/index.html"
-          test -f "$PUBLISH_DIR/docs/images/login-current.png"
+      - name: Descargar artefacto del sitio
+        uses: actions/download-artifact@v4
+        with:
+          name: netlify-site-${{ github.sha }}
+          path: ${{ env.PUBLISH_DIR }}
 
       - name: Publicar resumen del sitio
         shell: bash
@@ -70,12 +114,20 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Deploy a producción
-        if: github.event_name == 'push'
+        if: >
+          github.event_name == 'push' ||
+          (github.event_name == 'workflow_dispatch' &&
+           inputs.deploy_target == 'production')
         run: npx --yes "netlify-cli@$NETLIFY_CLI_VERSION" deploy --dir="$PUBLISH_DIR" --prod --message "Deploy ${{ github.sha }}"
 
       - name: Deploy preview (PR)
-        if: github.event_name == 'pull_request'
-        run: npx --yes "netlify-cli@$NETLIFY_CLI_VERSION" deploy --dir="$PUBLISH_DIR" --alias "pr-${{ github.event.number }}" --message "PR #${{ github.event.number }}"
+        if: >
+          github.event_name == 'pull_request' ||
+          (github.event_name == 'workflow_dispatch' &&
+           inputs.deploy_target == 'preview')
+        env:
+          PREVIEW_ALIAS: ${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.number) || format('manual-{0}', github.run_id) }}
+        run: npx --yes "netlify-cli@$NETLIFY_CLI_VERSION" deploy --dir="$PUBLISH_DIR" --alias "$PREVIEW_ALIAS" --message "Preview ${{ github.sha }}"
 
       - name: Verificar sitio publicado
         if: vars.NETLIFY_SITE_URL != ''
